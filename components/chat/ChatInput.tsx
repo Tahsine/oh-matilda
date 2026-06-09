@@ -1,20 +1,22 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useState } from 'react';
 import { Keyboard, TextInput, TouchableOpacity, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 
 type ChatInputProps = {
-  value: string;
-  onChangeText: (text: string) => void;
-  onSend: () => void;
+  onSend: (text: string) => void;
   streaming: boolean;
 };
 
-export function ChatInput({ value, onChangeText, onSend, streaming }: ChatInputProps) {
+export function ChatInput({ onSend, streaming }: ChatInputProps) {
+  const [value, setValue] = useState('');
+
   const handleSend = () => {
-    if (!value.trim() || streaming) return;
+    const text = value.trim();
+    if (!text || streaming) return;
     Keyboard.dismiss();
-    onSend();
+    onSend(text);
+    setValue('');
   };
 
   return (
@@ -22,7 +24,7 @@ export function ChatInput({ value, onChangeText, onSend, streaming }: ChatInputP
       <View className="bg-[#2A2A2A] rounded-[28px] mx-4 mb-2 p-3">
         <TextInput
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={setValue}
           placeholder="Message Oh Matilda..."
           placeholderTextColor="#A3A3A3"
           multiline

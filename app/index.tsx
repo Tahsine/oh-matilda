@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useRef, useState } from "react";
+import React from "react";
 import {
   ScrollView,
   Text,
@@ -10,52 +10,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChatBubble } from "../components/chat/ChatBubble";
 import { ChatInput } from "../components/chat/ChatInput";
-import { generateId } from "../lib/utils";
-import type { Message } from "../lib/types";
-
-const HINT = `Implémentation de **Matilda** en cours, veuillez réessayer plus tard.`;
+import { useStreamChat } from "../lib/chat";
 
 export default function Index() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [streaming, setStreaming] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
-
-  const handleSend = useCallback(() => {
-    const text = input.trim();
-    if (!text || streaming) return;
-
-    setInput('');
-
-    const userMsg: Message = { id: generateId(), role: 'user', content: text };
-    const assistantMsg: Message = { id: generateId(), role: 'assistant', content: '' };
-
-    setMessages(prev => [...prev, userMsg, assistantMsg]);
-    setStreaming(true);
-
-    let index = 0;
-    const chars = HINT.split('');
-
-    const interval = setInterval(() => {
-      if (index < chars.length) {
-        const char = chars[index];
-        index++;
-        setMessages(prev => {
-          const next = [...prev];
-          const last = { ...next[next.length - 1] };
-          last.content += char;
-          next[next.length - 1] = last;
-          return next;
-        });
-        scrollRef.current?.scrollToEnd({ animated: true });
-      } else {
-        clearInterval(interval);
-        setStreaming(false);
-      }
-    }, 15);
-  }, [input, streaming]);
+  const { messages, sendMessage, streaming, scrollRef } = useStreamChat();
 
   return (
     <SafeAreaView className="flex-1 bg-[#1E1E1E]">
@@ -99,9 +59,7 @@ export default function Index() {
       </ScrollView>
 
       <ChatInput
-        value={input}
-        onChangeText={setInput}
-        onSend={handleSend}
+        onSend={sendMessage}
         streaming={streaming}
       />
     </SafeAreaView>
