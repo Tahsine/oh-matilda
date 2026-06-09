@@ -1,21 +1,27 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from "react";
-import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { ChatBubble } from "../components/chat/ChatBubble";
-import { ChatInput } from "../components/chat/ChatInput";
-import { useStreamChat } from "../lib/chat";
+import React, { useCallback } from 'react';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ChatBubble } from '../components/chat/ChatBubble';
+import { ChatInput } from '../components/chat/ChatInput';
+import { useStreamChat } from '../lib/chat';
 
 export default function Index() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { messages, sendMessage, streaming, scrollRef } = useStreamChat();
+
+  const onConversationChange = useCallback(
+    (conv: { id: string }) => {
+      router.setParams({ id: conv.id });
+    },
+    [router],
+  );
+
+  const { messages, sendMessage, streaming, scrollRef } = useStreamChat({
+    conversationId: id,
+    onConversationChange,
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-[#1E1E1E]">

@@ -22,4 +22,5 @@ export type Conversation = {
   title: string;
   preview: string;
   date: Date;
+  favorite: boolean;
 };

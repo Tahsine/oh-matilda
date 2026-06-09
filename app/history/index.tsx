@@ -1,48 +1,74 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { SectionList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HistoryItem } from '../../components/history/HistoryItem';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { SearchBar } from '../../components/ui/SearchBar';
+import {
+  deleteConversation,
+  getAllConversations,
+  renameConversation,
+  searchConversations,
+  toggleFavorite,
+} from '../../lib/db';
 import type { Conversation } from '../../lib/types';
 
-const MOCK_CONVERSATIONS: Conversation[] = [
-  {
-    id: '1',
-    title: 'Analyse du contrat de location',
-    preview: "Voici le résumé des clauses principales que j'ai identifiées dans le document PDF...",
-    date: new Date(Date.now() - 1000 * 60 * 45),
-  },
-  {
-    id: '2',
-    title: "Rédaction d'un email professionnel",
-    preview: 'Je peux vous aider à rédiger un email formel pour votre situation. Voici un exemple...',
-    date: new Date(Date.now() - 1000 * 60 * 60 * 3),
-  },
-  {
-    id: '3',
-    title: 'Extraction des données du rapport financier',
-    preview: "J'ai extrait les chiffres clés du document Word. Le chiffre d'affaires est de...",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24),
-  },
-  {
-    id: '4',
-    title: 'Comparaison de devis',
-    preview: "Après analyse des deux devis, voici les différences principales que j'ai trouvées...",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-  },
-  {
-    id: '5',
-    title: 'Synthèse du procès-verbal',
-    preview: 'Le PV de réunion du 15 mai contient 3 décisions majeures concernant le budget...',
-    date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
-  },
-];
+type Section = {
+  title: string;
+  data: Conversation[];
+};
 
 export default function HistoryScreen() {
   const router = useRouter();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [search, setSearch] = useState('');
+
+  const load = useCallback(() => {
+    const list = search.trim()
+      ? searchConversations(search.trim())
+      : getAllConversations();
+    setConversations(list);
+  }, [search]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const sections: Section[] = [];
+  const favorites = conversations.filter((c) => c.favorite);
+  const normal = conversations.filter((c) => !c.favorite);
+
+  if (favorites.length > 0) {
+    sections.push({ title: 'Favoris', data: favorites });
+  }
+  if (normal.length > 0) {
+    sections.push({ title: 'Conversations', data: normal });
+  }
+
+  const handleDelete = (id: string) => {
+    deleteConversation(id);
+    load();
+  };
+
+  const handleToggleFavorite = (id: string) => {
+    if (conversations.find((c) => c.id === id)) {
+      toggleFavorite(id);
+      load();
+    }
+  };
+
+  const handleRename = (id: string, title: string) => {
+    renameConversation(id, title);
+    load();
+  };
+
+  const handleNew = () => {
+    router.push('/');
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#1E1E1E]">
@@ -54,22 +80,45 @@ export default function HistoryScreen() {
 
         <Text className="text-white text-lg font-semibold">Historique</Text>
 
-        <TouchableOpacity className="p-1">
-          <Feather name="trash-2" size={20} color="#EF4444" />
+        <TouchableOpacity onPress={handleNew} className="p-1">
+          <Feather name="plus" size={22} color="#D4D4D4" />
         </TouchableOpacity>
       </View>
 
-      <SearchBar />
+      <SearchBar
+        placeholder="Rechercher une conversation..."
+        value={search}
+        onChangeText={setSearch}
+      />
 
-      <FlatList
-        data={MOCK_CONVERSATIONS}
-        keyExtractor={item => item.id}
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <HistoryItem item={item} onPress={() => router.push({ pathname: '/', params: { id: item.id } })} />
+          <HistoryItem
+            item={item}
+            onPress={() => router.push({ pathname: '/', params: { id: item.id } })}
+            onDelete={() => handleDelete(item.id)}
+            onToggleFavorite={() => handleToggleFavorite(item.id)}
+            onRename={(title) => handleRename(item.id, title)}
+          />
+        )}
+        renderSectionHeader={({ section: { title } }) => (
+          <View className="px-4 pt-4 pb-1">
+            <Text className="text-neutral-400 text-xs font-semibold uppercase tracking-wider">
+              {title} ({title === 'Favoris' ? favorites.length : normal.length})
+            </Text>
+          </View>
         )}
         ItemSeparatorComponent={() => <View className="h-px bg-neutral-800 mx-4" />}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}
-        ListEmptyComponent={<EmptyState icon="message-square" label="Aucune conversation" />}
+        ListEmptyComponent={
+          <EmptyState
+            icon="message-square"
+            label={search ? 'Aucun résultat' : 'Aucune conversation'}
+          />
+        }
+        stickySectionHeadersEnabled={false}
       />
     </SafeAreaView>
   );
