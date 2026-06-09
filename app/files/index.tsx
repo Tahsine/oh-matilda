@@ -1,20 +1,11 @@
-import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-type FileStatus = 'indexed' | 'pending' | 'error';
-type FileType = 'pdf' | 'docx';
-
-type FileItem = {
-  id: string;
-  name: string;
-  type: FileType;
-  size: string;
-  date: string;
-  status: FileStatus;
-};
+import { FileListItem } from '../../components/files/FileListItem';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { FilterChips } from '../../components/ui/FilterChips';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import type { FileItem } from '../../lib/types';
 
 const MOCK_FILES: FileItem[] = [
   { id: '1', name: 'Rapport annuel 2025.pdf', type: 'pdf', size: '2.4 MB', date: '15/05/2025', status: 'indexed' },
@@ -27,25 +18,7 @@ const MOCK_FILES: FileItem[] = [
 
 const FILTERS = ['Tous', 'PDF', 'Word', 'Indexés', 'En attente'];
 
-const STATUS_LABEL: Record<FileStatus, string> = {
-  indexed: 'Indexé',
-  pending: 'En cours',
-  error: 'Erreur',
-};
-
-const STATUS_COLOR: Record<FileStatus, string> = {
-  indexed: '#22C55E',
-  pending: '#F97316',
-  error: '#EF4444',
-};
-
-const FILE_ICON: Record<FileType, keyof typeof Feather.glyphMap> = {
-  pdf: 'file-text',
-  docx: 'file',
-};
-
 export default function FilesScreen() {
-  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('Tous');
 
   const filtered =
@@ -61,81 +34,18 @@ export default function FilesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#1E1E1E]">
-      {/* Header */}
-      <View className="flex-row items-center px-4 py-3 border-b border-neutral-800">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3">
-          <Feather name="arrow-left" size={24} color="#D4D4D4" />
-        </TouchableOpacity>
-        <Text className="flex-1 text-center text-white text-lg font-semibold">Fichiers</Text>
-        <TouchableOpacity>
-          <Feather name="upload" size={22} color="#D4D4D4" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader title="Fichiers" />
 
-      {/* Filter chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="py-2 px-4"
-        style={{ flexGrow: 0 }}
-        contentContainerStyle={{ gap: 8 }}
-      >
-        {FILTERS.map(f => {
-          const active = f === activeFilter;
-          return (
-            <TouchableOpacity
-              key={f}
-              onPress={() => setActiveFilter(f)}
-              className={`h-8 items-center justify-center px-4 rounded-full ${active ? 'bg-white' : 'bg-[#2A2A2A]'}`}
-            >
-              <Text className={`text-sm ${active ? 'text-black font-medium' : 'text-neutral-400'}`}>
-                {f}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <FilterChips filters={FILTERS} active={activeFilter} onSelect={setActiveFilter} />
 
-      {/* File list */}
       <FlatList
         data={filtered}
         keyExtractor={item => item.id}
         className="flex-1"
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-        renderItem={({ item }) => (
-          <TouchableOpacity className="flex-row items-center py-4 border-b border-neutral-800/60">
-            <View className="w-10 h-10 rounded-lg bg-[#2A2A2A] items-center justify-center mr-3">
-              <Feather name={FILE_ICON[item.type]} size={20} color={STATUS_COLOR[item.status]} />
-            </View>
-
-            <View className="flex-1 mr-3">
-              <Text className="text-white text-sm font-medium" numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text className="text-neutral-500 text-xs mt-0.5">
-                {item.size} · {item.date}
-              </Text>
-            </View>
-
-            <View
-              className="px-2.5 py-1 rounded-full"
-              style={{ backgroundColor: `${STATUS_COLOR[item.status]}20` }}
-            >
-              <Text style={{ color: STATUS_COLOR[item.status] }} className="text-xs font-medium">
-                {STATUS_LABEL[item.status]}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View className="flex-1 items-center justify-center pt-20">
-            <Feather name="inbox" size={48} color="#525252" />
-            <Text className="text-neutral-500 text-base mt-4">Aucun fichier trouvé</Text>
-          </View>
-        }
+        renderItem={({ item }) => <FileListItem item={item} />}
+        ListEmptyComponent={<EmptyState icon="inbox" label="Aucun fichier trouvé" />}
       />
-
-
     </SafeAreaView>
   );
 }
