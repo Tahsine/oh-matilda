@@ -1,4 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from "react";
 import {
   Keyboard,
@@ -33,6 +34,8 @@ const markdownStyles = {
 const HINT = `Implémentation de **Matilda** en cours, veuillez réessayer plus tard.`;
 
 export default function Index() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -77,15 +80,15 @@ export default function Index() {
     <SafeAreaView className="flex-1 bg-[#1E1E1E]">
       {/* --- HEADER --- */}
       <View className="flex-row justify-between items-center px-4 py-3 border-b border-neutral-800">
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/history')}>
           <Feather name="menu" size={24} color="#D4D4D4" />
         </TouchableOpacity>
 
         <View className="flex-row items-center gap-4">
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/files')}>
             <Feather name="folder" size={22} color="#D4D4D4" />
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/settings')}>
             <Feather name="settings" size={22} color="#D4D4D4" />
           </TouchableOpacity>
         </View>
@@ -128,7 +131,7 @@ export default function Index() {
       </ScrollView>
 
       {/* --- CHAT INPUT (sticky au-dessus du clavier) --- */}
-      <KeyboardStickyView offset={{ bottom: 8 }}>
+      <KeyboardStickyView offset={{ closed: 8, opened: 8 }}>
         <View className="bg-[#2A2A2A] rounded-[28px] mx-4 mb-2 p-3">
           <TextInput
             value={input}
