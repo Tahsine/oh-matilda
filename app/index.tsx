@@ -1,94 +1,166 @@
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { generateText } from "ai";
-import { useState } from "react";
+import { Feather, Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useRef, useState } from "react";
 import {
-  ActivityIndicator,
+  Keyboard,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-
-const provider = createOpenAICompatible({
-  name: "llama.cpp",
-  baseURL: "http://192.168.100.166:8001/v1", // ← ton IP locale + port llama.cpp
-});
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import Markdown from 'react-native-markdown-display';
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Message = {
-  role: "user" | "assistant";
+  id: string;
+  role: 'user' | 'assistant';
   content: string;
 };
 
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+const markdownStyles = {
+  body: { color: '#E4E4E7', fontSize: 16, lineHeight: 24 },
+  code_inline: { color: '#A78BFA', backgroundColor: '#2A2A2A', paddingHorizontal: 4, borderRadius: 4 },
+  code_block: { color: '#E4E4E7', backgroundColor: '#2A2A2A', padding: 12, borderRadius: 8 },
+  fence: { color: '#E4E4E7', backgroundColor: '#2A2A2A', padding: 12, borderRadius: 8 },
+  link: { color: '#60A5FA' },
+};
+
+const HINT = `Implémentation de **Matilda** en cours, veuillez réessayer plus tard.`;
+
 export default function Index() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
-  const send = async () => {
-    if (!input.trim()) return;
+  const handleSend = useCallback(async () => {
+    const text = input.trim();
+    if (!text || streaming) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    const history = [...messages, userMessage];
-    setMessages(history);
-    setInput("");
-    setLoading(true);
+    Keyboard.dismiss();
+    setInput('');
 
-    try {
-      const { text } = await generateText({
-        model: provider("unsloth/gemma-4-26B-A4B-it-GGUF"), // ← nom du modèle chargé dans llama.cpp
-        messages: history,
-      });
+    const userMsg: Message = { id: generateId(), role: 'user', content: text };
+    const assistantMsg: Message = { id: generateId(), role: 'assistant', content: '' };
 
-      setMessages([...history, { role: "assistant", content: text }]);
-    } catch (e) {
-      setMessages([
-        ...history,
-        { role: "assistant", content: "Erreur : " + String(e) },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setMessages(prev => [...prev, userMsg, assistantMsg]);
+    setStreaming(true);
+
+    let index = 0;
+    const chars = HINT.split('');
+
+    const interval = setInterval(() => {
+      if (index < chars.length) {
+        const char = chars[index];
+        index++;
+        setMessages(prev => {
+          const next = [...prev];
+          const last = { ...next[next.length - 1] };
+          last.content += char;
+          next[next.length - 1] = last;
+          return next;
+        });
+        scrollRef.current?.scrollToEnd({ animated: true });
+      } else {
+        clearInterval(interval);
+        setStreaming(false);
+      }
+    }, 15);
+  }, [input, streaming]);
 
   return (
-    <View className="flex-1 bg-white">
-      <ScrollView className="flex-1 p-4" contentContainerStyle={{ gap: 12 }}>
-        {messages.map((m, i) => (
-          <View
-            key={i}
-            className={`max-w-[80%] p-3 rounded-2xl ${
-              m.role === "user" ? "bg-black self-end" : "bg-gray-100 self-start"
-            }`}
-          >
-            <Text className={m.role === "user" ? "text-white" : "text-black"}>
-              {m.content}
+    <SafeAreaView className="flex-1 bg-[#1E1E1E]">
+      {/* --- HEADER --- */}
+      <View className="flex-row justify-between items-center px-4 py-3 border-b border-neutral-800">
+        <TouchableOpacity>
+          <Feather name="menu" size={24} color="#D4D4D4" />
+        </TouchableOpacity>
+
+        <View className="flex-row items-center gap-4">
+          <TouchableOpacity>
+            <Feather name="folder" size={22} color="#D4D4D4" />
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Feather name="settings" size={22} color="#D4D4D4" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* --- MESSAGES --- */}
+      <ScrollView
+        ref={scrollRef}
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingVertical: 16 }}
+      >
+        {messages.length === 0 && (
+          <View className="flex-1 items-center justify-center px-4 pt-20">
+            <Text className="text-neutral-500 text-center text-sm">
+              Oh Matilda - Agentic & Offline First
+            </Text>
+            <Text className="text-neutral-600 text-center text-xs mt-2">
+              Posez une question ou importez un document
             </Text>
           </View>
-        ))}
-        {loading && (
-          <View className="bg-gray-100 self-start p-3 rounded-2xl">
-            <ActivityIndicator size="small" color="#000" />
-          </View>
         )}
+
+        {messages.map(msg => (
+          <View
+            key={msg.id}
+            className="px-4 py-2"
+          >
+            {msg.role === 'user' ? (
+              <Text className="text-white text-base leading-6">
+                {msg.content}
+              </Text>
+            ) : (
+              <Markdown style={markdownStyles}>
+                {msg.content || '...'}
+              </Markdown>
+            )}
+          </View>
+        ))}
       </ScrollView>
 
-      <View className="flex-row items-center gap-2 p-4 border-t border-gray-200">
-        <TextInput
-          className="flex-1 bg-gray-100 rounded-2xl px-4 py-3 text-base"
-          placeholder="Message..."
-          value={input}
-          onChangeText={setInput}
-          multiline
-        />
-        <TouchableOpacity
-          onPress={send}
-          disabled={loading}
-          className="bg-black rounded-full w-10 h-10 items-center justify-center"
-        >
-          <Text className="text-white text-lg">↑</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      {/* --- CHAT INPUT (sticky au-dessus du clavier) --- */}
+      <KeyboardStickyView offset={{ bottom: 8 }}>
+        <View className="bg-[#2A2A2A] rounded-[28px] mx-4 mb-2 p-3">
+          <TextInput
+            value={input}
+            onChangeText={setInput}
+            placeholder="Message Oh Matilda..."
+            placeholderTextColor="#A3A3A3"
+            multiline
+            className="text-white text-base max-h-32 min-h-[40px] px-2"
+            style={{ textAlignVertical: 'top' }}
+          />
+
+          <View className="flex-row justify-between items-center mt-2">
+            <TouchableOpacity className="p-2">
+              <Feather name="plus" size={24} color="#D4D4D4" />
+            </TouchableOpacity>
+
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity className="p-2">
+                <Feather name="mic" size={20} color="#D4D4D4" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleSend}
+                disabled={!input.trim() || streaming}
+                className="bg-slate-500 rounded-full h-10 w-10 items-center justify-center ml-1"
+              >
+                <Ionicons name="arrow-up" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </KeyboardStickyView>
+    </SafeAreaView>
   );
 }
