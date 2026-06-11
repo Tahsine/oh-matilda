@@ -1,5 +1,5 @@
 import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
-import type { Conversation, Message } from './types';
+import type { Chunk, Conversation, FileItem, FileStatus, FileType, Message } from './types';
 
 let db: SQLiteDatabase | null = null;
 
@@ -21,6 +21,24 @@ function getDB(): SQLiteDatabase {
         content TEXT NOT NULL DEFAULT '',
         createdAt INTEGER NOT NULL,
         FOREIGN KEY (conversationId) REFERENCES conversations(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        size INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending',
+        errorMessage TEXT,
+        date INTEGER NOT NULL,
+        textContent TEXT NOT NULL DEFAULT '',
+        localUri TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE IF NOT EXISTS chunks (
+        id TEXT PRIMARY KEY NOT NULL,
+        documentId TEXT NOT NULL,
+        content TEXT NOT NULL,
+        chunkIndex INTEGER NOT NULL,
+        FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE
       );
     `);
   }
@@ -171,7 +189,198 @@ export function updateMessageContent(conversationId: string, msgId: string, cont
   );
 }
 
+// --- Documents ---
+
+type DBRowDocument = {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  status: string;
+  errorMessage: string | null;
+  date: number;
+  textContent: string;
+  localUri: string;
+};
+
+function rowToDocument(row: DBRowDocument): FileItem {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type as FileType,
+    size: row.size,
+    date: new Date(row.date).toLocaleDateString('fr-FR'),
+    status: row.status as FileStatus,
+    localUri: row.localUri,
+    errorMessage: row.errorMessage ?? undefined,
+  };
+}
+
+type DBRowChunk = {
+  id: string;
+  documentId: string;
+  content: string;
+  chunkIndex: number;
+};
+
+export function getAllDocuments(): FileItem[] {
+  const db = getDB();
+  const rows = db.getAllSync<DBRowDocument>(
+    'SELECT * FROM documents ORDER BY date DESC',
+  );
+  return rows.map(rowToDocument);
+}
+
+export function getDocumentById(id: string): FileItem | null {
+  const db = getDB();
+  const row = db.getFirstSync<DBRowDocument>(
+    'SELECT * FROM documents WHERE id = ?',
+    id,
+  );
+  return row ? rowToDocument(row) : null;
+}
+
+export function insertDocument(
+  name: string,
+  type: FileType,
+  size: number,
+  localUri: string,
+): FileItem {
+  const db = getDB();
+  const id = generateId();
+  const now = Date.now();
+  db.runSync(
+    'INSERT INTO documents (id, name, type, size, status, date, textContent, localUri) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    id,
+    name,
+    type,
+    size,
+    'pending',
+    now,
+    '',
+    localUri,
+  );
+  return {
+    id,
+    name,
+    type,
+    size,
+    status: 'pending',
+    date: new Date(now).toLocaleDateString('fr-FR'),
+    localUri,
+  };
+}
+
+export function updateDocumentStatus(
+  id: string,
+  status: FileStatus,
+  textContent?: string,
+  errorMessage?: string,
+): void {
+  const db = getDB();
+  if (textContent !== undefined && errorMessage !== undefined) {
+    db.runSync(
+      'UPDATE documents SET status = ?, textContent = ?, errorMessage = ? WHERE id = ?',
+      status,
+      textContent,
+      errorMessage,
+      id,
+    );
+  } else if (textContent !== undefined) {
+    db.runSync(
+      'UPDATE documents SET status = ?, textContent = ? WHERE id = ?',
+      status,
+      textContent,
+      id,
+    );
+  } else if (errorMessage !== undefined) {
+    db.runSync(
+      'UPDATE documents SET status = ?, errorMessage = ? WHERE id = ?',
+      status,
+      errorMessage,
+      id,
+    );
+  } else {
+    db.runSync('UPDATE documents SET status = ? WHERE id = ?', status, id);
+  }
+}
+
+export function deleteDocument(id: string): void {
+  const db = getDB();
+  db.runSync('DELETE FROM chunks WHERE documentId = ?', id);
+  db.runSync('DELETE FROM documents WHERE id = ?', id);
+}
+
+export function searchDocumentText(query: string): {
+  documentId: string;
+  documentName: string;
+  snippet: string;
+}[] {
+  const db = getDB();
+  const like = `%${query}%`;
+  const rows = db.getAllSync<{ id: string; name: string; textContent: string }>(
+    "SELECT id, name, textContent FROM documents WHERE textContent LIKE ? AND textContent != ''",
+    like,
+  );
+  return rows.map((r) => ({
+    documentId: r.id,
+    documentName: r.name,
+    snippet: extractSnippet(r.textContent, query, 200),
+  }));
+}
+
+// --- Chunks ---
+
+export function insertChunks(documentId: string, chunks: string[]): void {
+  const db = getDB();
+  for (let i = 0; i < chunks.length; i++) {
+    db.runSync(
+      'INSERT INTO chunks (id, documentId, content, chunkIndex) VALUES (?, ?, ?, ?)',
+      generateId(),
+      documentId,
+      chunks[i],
+      i,
+    );
+  }
+}
+
+export function getChunks(documentId: string): Chunk[] {
+  const db = getDB();
+  return db.getAllSync<DBRowChunk>(
+    'SELECT * FROM chunks WHERE documentId = ? ORDER BY chunkIndex ASC',
+    documentId,
+  );
+}
+
+export function searchChunks(query: string): { chunkId: string; documentId: string; content: string; score: number }[] {
+  const db = getDB();
+  const like = `%${query}%`;
+  const rows = db.getAllSync<DBRowChunk>(
+    'SELECT * FROM chunks WHERE content LIKE ? ORDER BY chunkIndex ASC',
+    like,
+  );
+  return rows.map((r) => ({
+    chunkId: r.id,
+    documentId: r.documentId,
+    content: r.content,
+    score: 1,
+  }));
+}
+
 // --- Utils ---
+
+function extractSnippet(text: string, query: string, contextChars: number): string {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text.slice(0, contextChars);
+
+  const start = Math.max(0, idx - contextChars / 2);
+  const end = Math.min(text.length, idx + query.length + contextChars / 2);
+  let snippet = text.slice(start, end);
+
+  if (start > 0) snippet = '...' + snippet;
+  if (end < text.length) snippet = snippet + '...';
+  return snippet;
+}
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);

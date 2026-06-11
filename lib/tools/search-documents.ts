@@ -1,5 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { searchDocumentText } from '../db';
 
 export const searchDocuments = tool({
   description: 'Rechercher dans les documents importés par l\'utilisateur',
@@ -8,10 +9,10 @@ export const searchDocuments = tool({
     maxResults: z.number().default(5).describe('Nombre maximum de résultats'),
   }),
   execute: async ({ query, maxResults }) => {
-    // Phase 1: mock. Phase 2: sqlite-vec full-text search
+    const results = searchDocumentText(query);
     return {
-      results: [],
-      total: 0,
+      results: results.slice(0, maxResults),
+      total: results.length,
       query,
     };
   },

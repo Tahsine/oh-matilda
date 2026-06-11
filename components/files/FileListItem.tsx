@@ -1,17 +1,27 @@
 import { Feather } from '@expo/vector-icons';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { Badge } from '../ui/Badge';
 import type { FileItem } from '../../lib/types';
+import { formatFileSize, formatFileDate } from '../../lib/utils';
 
 const STATUS_COLOR: Record<FileItem['status'], string> = {
   indexed: '#22C55E',
+  indexing: '#3B82F6',
   pending: '#F97316',
   error: '#EF4444',
 };
 
 const STATUS_LABEL: Record<FileItem['status'], string> = {
   indexed: 'Indexé',
+  indexing: 'Indexation...',
   pending: 'En cours',
   error: 'Erreur',
 };
@@ -24,25 +34,84 @@ const FILE_ICON: Record<FileItem['type'], keyof typeof Feather.glyphMap> = {
 type FileListItemProps = {
   item: FileItem;
   onPress?: () => void;
+  onDelete?: () => void;
 };
 
-export function FileListItem({ item, onPress }: FileListItemProps) {
+export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
+  const translateX = useSharedValue(0);
+  const deleteWidth = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-10, 10])
+    .onUpdate((e) => {
+      const clamped = Math.max(e.translationX, -deleteWidth.value);
+      translateX.value = clamped;
+    })
+    .onEnd(() => {
+      const t = translateX.value;
+      if (t < -30 && deleteWidth.value > 0) {
+        translateX.value = withSpring(-deleteWidth.value);
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const tapGesture = Gesture.Tap()
+    .maxDuration(300)
+    .onEnd(() => {
+      const t = translateX.value;
+      if (Math.abs(t) < 20) {
+        runOnJS(onPress || (() => {}))();
+      }
+    });
+
+  const composed = Gesture.Race(panGesture, tapGesture);
+
+  const handleDelete = useCallback(() => {
+    translateX.value = withSpring(0);
+    onDelete?.();
+  }, [onDelete, translateX]);
+
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
   return (
-    <TouchableOpacity onPress={onPress} className="flex-row items-center py-4 border-b border-neutral-800/60">
-      <View className="w-10 h-10 rounded-lg bg-[#2A2A2A] items-center justify-center mr-3">
-        <Feather name={FILE_ICON[item.type]} size={20} color={STATUS_COLOR[item.status]} />
+    <View className="overflow-hidden">
+      <View
+        className="absolute inset-y-0 right-0 justify-center bg-red-500"
+        onLayout={(e) => { deleteWidth.value = e.nativeEvent.layout.width; }}
+      >
+        <TouchableOpacity onPress={handleDelete} className="px-5 py-4">
+          <Feather name="trash-2" size={22} color="white" />
+        </TouchableOpacity>
       </View>
 
-      <View className="flex-1 mr-3">
-        <Text className="text-white text-sm font-medium" numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text className="text-neutral-500 text-xs mt-0.5">
-          {item.size} · {item.date}
-        </Text>
-      </View>
+      <GestureDetector gesture={composed}>
+        <Animated.View style={rowStyle}>
+          <TouchableOpacity
+            onPress={onPress}
+            activeOpacity={0.7}
+            className="flex-row items-center py-4 px-4 bg-[#1E1E1E] border-b border-neutral-800/60"
+          >
+            <View className="w-10 h-10 rounded-lg bg-[#2A2A2A] items-center justify-center mr-3">
+              <Feather name={FILE_ICON[item.type]} size={20} color={STATUS_COLOR[item.status]} />
+            </View>
 
-      <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
-    </TouchableOpacity>
+            <View className="flex-1 mr-3">
+              <Text className="text-white text-sm font-medium" numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text className="text-neutral-500 text-xs mt-0.5" numberOfLines={1}>
+                {formatFileSize(item.size)} · {item.date}
+              </Text>
+            </View>
+
+            <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
+          </TouchableOpacity>
+        </Animated.View>
+      </GestureDetector>
+    </View>
   );
 }

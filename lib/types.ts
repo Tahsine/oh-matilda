@@ -4,7 +4,7 @@ export type Message = {
   content: string;
 };
 
-export type FileStatus = 'indexed' | 'pending' | 'error';
+export type FileStatus = 'indexed' | 'pending' | 'indexing' | 'error';
 
 export type FileType = 'pdf' | 'docx';
 
@@ -12,9 +12,18 @@ export type FileItem = {
   id: string;
   name: string;
   type: FileType;
-  size: string;
+  size: number;
   date: string;
   status: FileStatus;
+  localUri: string;
+  errorMessage?: string;
+};
+
+export type Chunk = {
+  id: string;
+  documentId: string;
+  content: string;
+  chunkIndex: number;
 };
 
 export type Conversation = {
