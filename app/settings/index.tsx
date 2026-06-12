@@ -40,7 +40,7 @@ export default function SettingsScreen() {
   const [theme, setTheme] = useState('system');
   const [, forceUpdate] = useState(0);
 
-  const [providerName, setProviderName] = useState<ProviderName>('ollama-cloud');
+  const [providerName, setProviderName] = useState('ollama-cloud');
   const [apiKey, setApiKey] = useState('');
   const [apiKeyFromSettings, setApiKeyFromSettings] = useState(false);
   const [activeModel, setActiveModel] = useState('');
@@ -118,10 +118,10 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleSelectProvider = (name: ProviderName) => {
+  const handleSelectProvider = (name: string) => {
     setProviderName(name);
     const adapter = getAdapter(name);
-    saveProviderConfig({ provider: name, activeModel: adapter.defaultModel });
+    saveProviderConfig({ provider: name as any, activeModel: adapter.defaultModel });
     setActiveModel(adapter.defaultModel);
     if (name !== 'ollama-cloud') {
       setShowApiKeyModal(true);

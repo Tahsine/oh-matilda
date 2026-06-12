@@ -1,6 +1,6 @@
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 
-export type ProviderName = 'ollama-cloud' | 'ollama-hosted' | 'openai' | 'anthropic' | 'llama-local' | 'groq';
+export type ProviderName = 'ollama-cloud' | 'ollama-hosted' | 'llama-local';
 
 export type ProviderConfig = {
   provider: ProviderName;
@@ -14,6 +14,6 @@ export interface ProviderAdapter {
   label: string;
   defaultModel: string;
   defaultBaseUrl: string;
-  createModel: (config: ProviderConfig) => LanguageModelV1;
+  createModel: (config: ProviderConfig) => LanguageModel;
   fetchModels?: (config: ProviderConfig) => Promise<string[]>;
 }

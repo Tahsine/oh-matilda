@@ -1,22 +1,17 @@
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import { getSetting, setSetting } from '../settings';
 import type { ProviderConfig, ProviderName, ProviderAdapter } from './types';
 import { ollamaCloudAdapter } from './ollama-cloud';
-import { groqAdapter } from './groq';
 
-const adapters: Record<ProviderName, ProviderAdapter> = {
+const adapters: Record<string, ProviderAdapter> = {
   'ollama-cloud': ollamaCloudAdapter,
   'ollama-hosted': ollamaCloudAdapter,
-  'openai': ollamaCloudAdapter,
-  'anthropic': ollamaCloudAdapter,
   'llama-local': ollamaCloudAdapter,
-  'groq': groqAdapter,
 };
 
-const ENV_FALLBACKS: Partial<Record<ProviderName, string | undefined>> = {
+const ENV_FALLBACKS: Partial<Record<string, string | undefined>> = {
   'ollama-cloud': process.env.EXPO_PUBLIC_OLLAMA_API_KEY,
   'ollama-hosted': process.env.EXPO_PUBLIC_OLLAMA_API_KEY,
-  'groq': process.env.EXPO_PUBLIC_GROQ_API_KEY,
 };
 
 function loadConfig(): ProviderConfig {
@@ -42,7 +37,7 @@ function loadConfig(): ProviderConfig {
   return config;
 }
 
-export function saveProviderConfig(overrides: Partial<ProviderConfig>): void {
+export function saveProviderConfig(overrides: Partial<ProviderConfig> & { provider?: string }): void {
   if (overrides.provider !== undefined) setSetting('provider', overrides.provider);
   if (overrides.apiKey !== undefined) setSetting('api_key', overrides.apiKey);
   if (overrides.baseUrl !== undefined) setSetting('server_url', overrides.baseUrl);
@@ -53,7 +48,7 @@ export function getActiveProvider(): ProviderConfig {
   return loadConfig();
 }
 
-export function createModel(modelId?: string): LanguageModelV1 {
+export function createModel(modelId?: string): LanguageModel {
   const config = loadConfig();
   const adapter = adapters[config.provider] || ollamaCloudAdapter;
   const effective = modelId || config.activeModel || adapter.defaultModel;
@@ -61,7 +56,7 @@ export function createModel(modelId?: string): LanguageModelV1 {
   return adapter.createModel({ ...config, activeModel: effective });
 }
 
-export async function fetchModels(provider?: ProviderName): Promise<string[]> {
+export async function fetchModels(provider?: string): Promise<string[]> {
   const config = loadConfig();
   const name = provider || config.provider;
   const adapter = adapters[name] || ollamaCloudAdapter;
@@ -84,17 +79,14 @@ export function providerLabel(name: ProviderName): string {
   return adapters[name]?.label || 'Ollama Cloud';
 }
 
-export function getAdapter(name: ProviderName): ProviderAdapter {
+export function getAdapter(name: string): ProviderAdapter {
   return adapters[name] || ollamaCloudAdapter;
 }
 
-export function getAvailableProviders(): { name: ProviderName; label: string; available: boolean }[] {
+export function getAvailableProviders(): { name: string; label: string; available: boolean }[] {
   return [
     { name: 'ollama-cloud', label: 'Ollama Cloud', available: true },
-    { name: 'groq', label: 'Groq', available: true },
     { name: 'ollama-hosted', label: 'Self-hosted', available: true },
-    { name: 'openai', label: 'OpenAI (Incoming)', available: false },
-    { name: 'anthropic', label: 'Anthropic (Incoming)', available: false },
     { name: 'llama-local', label: 'llama.cpp (local)', available: true },
   ];
 }
