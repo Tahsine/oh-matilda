@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { SectionList, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, RefreshControl, SectionList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HistoryItem } from '../../components/history/HistoryItem';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -24,18 +24,25 @@ export default function HistoryScreen() {
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(() => {
-    const list = search.trim()
-      ? searchConversations(search.trim())
-      : getAllConversations();
+  const load = useCallback((query?: string) => {
+    const q = query?.trim();
+    const list = q ? searchConversations(q) : getAllConversations();
     setConversations(list);
-  }, [search]);
+  }, []);
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => load(search), 300);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [search, load]);
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load]),
+      load(search);
+    }, [load, search]),
   );
 
   const sections: Section[] = [];
@@ -50,25 +57,39 @@ export default function HistoryScreen() {
   }
 
   const handleDelete = (id: string) => {
-    deleteConversation(id);
-    load();
+    Alert.alert(
+      'Supprimer la conversation',
+      'Cette action est irréversible.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Supprimer', style: 'destructive', onPress: () => { deleteConversation(id); load(search); } },
+      ],
+    );
   };
 
   const handleToggleFavorite = (id: string) => {
     if (conversations.find((c) => c.id === id)) {
       toggleFavorite(id);
-      load();
+      load(search);
     }
   };
 
   const handleRename = (id: string, title: string) => {
     renameConversation(id, title);
-    load();
+    load(search);
   };
 
   const handleNew = () => {
     router.push('/');
   };
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    requestAnimationFrame(() => {
+      load(search);
+      setRefreshing(false);
+    });
+  }, [load, search]);
 
   return (
     <SafeAreaView className="flex-1 bg-[#1E1E1E]">
@@ -94,6 +115,13 @@ export default function HistoryScreen() {
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#D4D4D4"
+          />
+        }
         renderItem={({ item }) => (
           <HistoryItem
             item={item}

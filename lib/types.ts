@@ -2,6 +2,7 @@ export type Message = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  image?: string;
 };
 
 export type FileStatus = 'indexed' | 'pending' | 'indexing' | 'error';

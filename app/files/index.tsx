@@ -2,12 +2,13 @@ import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { Alert, FlatList, Linking, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileListItem } from '../../components/files/FileListItem';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { FilterChips } from '../../components/ui/FilterChips';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
 import { chunkText } from '../../lib/chunker';
 import {
   deleteDocument,
@@ -18,6 +19,7 @@ import {
 } from '../../lib/db';
 import { parseDocument } from '../../lib/document-parser';
 import { generateEmbeddings } from '../../lib/embeddings';
+import { pushError } from '../../lib/error-handler';
 import { logger } from '../../lib/logger';
 import { storeEmbeddings } from '../../lib/vector-store';
 import type { FileItem } from '../../lib/types';
@@ -27,6 +29,7 @@ const FILTERS = ['Tous', 'PDF', 'Word', 'Indexés', 'En attente'];
 export default function FilesScreen() {
   const [documents, setDocuments] = useState<FileItem[]>([]);
   const [activeFilter, setActiveFilter] = useState('Tous');
+  const [search, setSearch] = useState('');
   const indexingIds = useRef<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [, forceRender] = useState(0);
@@ -73,17 +76,20 @@ export default function FilesScreen() {
           logger.index('embeddings OK', { count: embeddings.length });
         } catch (e) {
           logger.index('embeddings FAILED (non-fatal)', e);
+          pushError({ type: 'embedding', message: `Indexation partielle de "${name}" : échec des embeddings` });
         }
 
         updateDocumentStatus(id, 'indexed', parsed.text);
         logger.index('done', { status: 'indexed' });
       } else {
         logger.index('parse FAILED', parsed.error);
+        pushError({ type: 'parse', message: `Impossible de lire "${name}" : ${parsed.error}` });
         updateDocumentStatus(id, 'error', undefined, parsed.error);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erreur inconnue';
       logger.index('exception', msg);
+      pushError({ type: 'parse', message: `Erreur lors de l'indexation de "${name}" : ${msg}` });
       updateDocumentStatus(id, 'error', undefined, msg);
     } finally {
       indexingIds.current = new Set(indexingIds.current);
@@ -93,6 +99,10 @@ export default function FilesScreen() {
     }
   }, [loadDocuments, rerender]);
 
+  const handleOpenFile = useCallback((uri: string) => {
+    Linking.openURL(uri);
+  }, []);
+
   const handlePick = useCallback(async () => {
     const result = await DocumentPicker.getDocumentAsync({
       type: [
@@ -100,25 +110,32 @@ export default function FilesScreen() {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       ],
       copyToCacheDirectory: true,
+      multiple: true,
     });
 
-    if (result.canceled || !result.assets?.[0]) return;
-    const file = result.assets[0];
-
-    const fileType: 'pdf' | 'docx' = file.mimeType?.includes('pdf')
-      ? 'pdf'
-      : file.name.toLowerCase().endsWith('.pdf')
+    if (result.canceled || !result.assets?.length) return;
+    for (const file of result.assets) {
+      const fileType: 'pdf' | 'docx' = file.mimeType?.includes('pdf')
         ? 'pdf'
-        : 'docx';
+        : file.name.toLowerCase().endsWith('.pdf')
+          ? 'pdf'
+          : 'docx';
 
-    const doc = insertDocument(file.name, fileType, file.size || 0, file.uri);
-    loadDocuments();
-    indexDocumentFile(doc.id, doc.name, doc.localUri);
+      const doc = insertDocument(file.name, fileType, file.size || 0, file.uri);
+      loadDocuments();
+      indexDocumentFile(doc.id, doc.name, doc.localUri);
+    }
   }, [loadDocuments, indexDocumentFile]);
 
-  const handleDelete = useCallback((id: string) => {
-    deleteDocument(id);
-    loadDocuments();
+  const handleDelete = useCallback((id: string, name: string) => {
+    Alert.alert(
+      'Supprimer le fichier',
+      `Supprimer "${name}" et toutes ses données indexées ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Supprimer', style: 'destructive', onPress: () => { deleteDocument(id); loadDocuments(); } },
+      ],
+    );
   }, [loadDocuments]);
 
   const handleRefresh = useCallback(async () => {
@@ -134,16 +151,18 @@ export default function FilesScreen() {
     setRefreshing(false);
   }, [indexDocumentFile, loadDocuments]);
 
-  const filtered =
-    activeFilter === 'Tous'
-      ? documents
-      : documents.filter(f => {
-          if (activeFilter === 'PDF') return f.type === 'pdf';
-          if (activeFilter === 'Word') return f.type === 'docx';
-          if (activeFilter === 'Indexés') return f.status === 'indexed';
-          if (activeFilter === 'En attente') return f.status === 'pending' || f.status === 'indexing' || f.status === 'error';
-          return true;
-        });
+  const filtered = documents.filter(f => {
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!f.name.toLowerCase().includes(q)) return false;
+    }
+    if (activeFilter === 'Tous') return true;
+    if (activeFilter === 'PDF') return f.type === 'pdf';
+    if (activeFilter === 'Word') return f.type === 'docx';
+    if (activeFilter === 'Indexés') return f.status === 'indexed';
+    if (activeFilter === 'En attente') return f.status === 'pending' || f.status === 'indexing' || f.status === 'error';
+    return true;
+  });
 
   const isLoading = indexingIds.current.size > 0;
 
@@ -156,6 +175,12 @@ export default function FilesScreen() {
             <Feather name="plus" size={24} color={isLoading ? '#666' : '#D4D4D4'} />
           </TouchableOpacity>
         }
+      />
+
+      <SearchBar
+        placeholder="Rechercher un fichier..."
+        value={search}
+        onChangeText={setSearch}
       />
 
       <FilterChips filters={FILTERS} active={activeFilter} onSelect={setActiveFilter} />
@@ -176,7 +201,8 @@ export default function FilesScreen() {
         renderItem={({ item }) => (
           <FileListItem
             item={item}
-            onDelete={() => handleDelete(item.id)}
+            onPress={() => handleOpenFile(item.localUri)}
+            onDelete={() => handleDelete(item.id, item.name)}
           />
         )}
         ListEmptyComponent={

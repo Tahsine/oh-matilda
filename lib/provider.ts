@@ -1,24 +1,11 @@
-import { createOllama } from 'ai-sdk-ollama/browser';
-import { fetch as expoFetch } from 'expo/fetch';
 import { getBgeM3Path } from './models';
-import { createLocalProvider, prepareEmbeddingModel } from './providers/llama-provider';
+import { prepareEmbeddingModel, createLocalProvider } from './providers/llama-provider';
+import { createModel, getActiveProvider, getProviderInfo as getRegistryInfo } from './providers/registry';
 
-const USE_LOCAL = process.env.EXPO_PUBLIC_USE_LOCAL_LLM === 'true';
-const API_KEY = process.env.EXPO_PUBLIC_OLLAMA_API_KEY ?? '';
-const CLOUD_MODEL = process.env.EXPO_PUBLIC_OLLAMA_MODEL ?? 'minimax-m3:cloud';
-
-let cloudProvider: ReturnType<typeof createOllama> | null = null;
 let cachedEmbeddingModel: Awaited<ReturnType<typeof prepareEmbeddingModel>> | null = null;
 
-function getCloudProvider() {
-  if (!cloudProvider) {
-    cloudProvider = createOllama({
-      baseURL: 'https://ollama.com',
-      apiKey: API_KEY || undefined,
-      fetch: expoFetch as unknown as typeof globalThis.fetch,
-    });
-  }
-  return cloudProvider;
+export function getProviderInfo() {
+  return getRegistryInfo();
 }
 
 export async function prepareEmbedding() {
@@ -27,11 +14,11 @@ export async function prepareEmbedding() {
 }
 
 export function getModel(modelId?: string) {
-  if (USE_LOCAL) {
-    return createLocalProvider().languageModel(modelId ?? 'gemma-4-4e4b-it-q4_k_xl');
+  const config = getActiveProvider();
+  if (config.provider === 'llama-local') {
+    return createLocalProvider().languageModel(config.activeModel);
   }
-  const id = modelId ?? CLOUD_MODEL;
-  return getCloudProvider()(id);
+  return createModel(modelId);
 }
 
 export function getEmbeddingModel() {

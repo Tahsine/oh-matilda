@@ -3,7 +3,7 @@ import type { Chunk, Conversation, FileItem, FileStatus, FileType, Message } fro
 
 let db: SQLiteDatabase | null = null;
 
-function getDB(): SQLiteDatabase {
+export function getDB(): SQLiteDatabase {
   if (!db) {
     db = openDatabaseSync('oh-matilda.db');
     db.execSync(`
@@ -47,7 +47,16 @@ function getDB(): SQLiteDatabase {
         FOREIGN KEY (chunkId) REFERENCES chunks(id) ON DELETE CASCADE,
         FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE
       );
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+      );
     `);
+    // Migration: add image column if not present
+    const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(messages)');
+    if (!cols.some((c) => c.name === 'image')) {
+      db.execSync('ALTER TABLE messages ADD COLUMN image TEXT');
+    }
   }
   return db;
 }
@@ -66,6 +75,7 @@ type DBRowMessage = {
   role: string;
   content: string;
   createdAt: number;
+  image: string | null;
 };
 
 function rowToConversation(row: DBRowConversation): Conversation {
@@ -126,6 +136,12 @@ export function deleteConversation(id: string): void {
   db.runSync('DELETE FROM conversations WHERE id = ?', id);
 }
 
+export function deleteAllConversations(): void {
+  const db = getDB();
+  db.runSync('DELETE FROM messages');
+  db.runSync('DELETE FROM conversations');
+}
+
 export function toggleFavorite(id: string): boolean {
   const db = getDB();
   const row = db.getFirstSync<{ favorite: number }>(
@@ -170,18 +186,19 @@ export function getMessages(conversationId: string): Message[] {
     'SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt ASC',
     conversationId,
   );
-  return rows.map((r) => ({ id: r.id, role: r.role as 'user' | 'assistant', content: r.content }));
+  return rows.map((r) => ({ id: r.id, role: r.role as 'user' | 'assistant', content: r.content, image: r.image ?? undefined }));
 }
 
 export function addMessage(conversationId: string, msg: Message): void {
   const db = getDB();
   db.runSync(
-    'INSERT INTO messages (id, conversationId, role, content, createdAt) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO messages (id, conversationId, role, content, createdAt, image) VALUES (?, ?, ?, ?, ?, ?)',
     msg.id,
     conversationId,
     msg.role,
     msg.content,
     Date.now(),
+    msg.image ?? null,
   );
 }
 

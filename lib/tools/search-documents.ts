@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { generateEmbedding } from '../embeddings';
 import { searchSimilar } from '../vector-store';
+import { pushError } from '../error-handler';
 import { logger } from '../logger';
 
 export const searchDocuments = tool({
@@ -14,15 +15,18 @@ Les résultats incluent un score de pertinence (0-1). En dessous de 0.5, les ré
     maxResults: z.number().default(5).describe('Nombre maximum de résultats'),
   }),
   execute: async ({ query, maxResults }) => {
+    console.log('[search] execute:', { query, maxResults });
     logger.search('execute', { query, maxResults });
 
     let embedding: number[];
     try {
       embedding = await generateEmbedding(query);
+      console.log('[search] embedding OK:', { dims: embedding.length });
       logger.search('embedding OK', { dims: embedding.length });
     } catch (e) {
       const reason = e instanceof Error ? e.message : 'Erreur inconnue';
       logger.search('embedding FAILED', reason);
+      pushError({ type: 'search', message: `Recherche impossible : ${reason}` });
       return {
         results: [],
         total: 0,
@@ -33,6 +37,7 @@ Les résultats incluent un score de pertinence (0-1). En dessous de 0.5, les ré
     }
 
     const results = searchSimilar(embedding, maxResults, 0.2);
+    console.log('[search] results:', { count: results.length, topScore: results[0]?.score ?? 0 });
     logger.search('results', { count: results.length, topScore: results[0]?.score ?? 0 });
 
     if (results.length === 0) {

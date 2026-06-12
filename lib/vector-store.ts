@@ -26,9 +26,11 @@ export function searchSimilar(
   minScore = 0.3,
 ): SearchResult[] {
   const rows = getEmbeddingsWithContent();
+  console.log('[vector] searchSimilar:', { totalEmbeddings: rows.length, limit, minScore });
   logger.search('searchSimilar', { totalEmbeddings: rows.length, limit, minScore });
 
   if (rows.length === 0) {
+    console.log('[vector] no embeddings in DB');
     logger.search('searchSimilar: no embeddings in DB');
     return [];
   }

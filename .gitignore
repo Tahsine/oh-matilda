@@ -42,3 +42,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# planning
+PHASE_FINALE.md
+PLAN_CUSTOM_PROVIDER.md

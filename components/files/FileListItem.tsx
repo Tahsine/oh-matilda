@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -44,13 +44,13 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
     .activeOffsetX([-10, 10])
     .failOffsetY([-10, 10])
     .onUpdate((e) => {
-      const clamped = Math.max(e.translationX, -deleteWidth.value);
+      const clamped = Math.min(Math.max(e.translationX, 0), deleteWidth.value);
       translateX.value = clamped;
     })
     .onEnd(() => {
       const t = translateX.value;
-      if (t < -30 && deleteWidth.value > 0) {
-        translateX.value = withSpring(-deleteWidth.value);
+      if (t > 30 && deleteWidth.value > 0) {
+        translateX.value = withSpring(deleteWidth.value);
       } else {
         translateX.value = withSpring(0);
       }
@@ -68,7 +68,7 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
   return (
     <View className="overflow-hidden">
       <View
-        className="absolute inset-y-0 right-0 justify-center bg-red-500"
+        className="absolute inset-y-0 left-0 justify-center bg-red-500"
         onLayout={(e) => { deleteWidth.value = e.nativeEvent.layout.width; }}
       >
         <TouchableOpacity onPress={handleDelete} className="px-5 py-4">
@@ -101,7 +101,11 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
               )}
             </View>
 
-            <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
+            {item.status === 'indexing' ? (
+              <ActivityIndicator size="small" color="#3B82F6" />
+            ) : (
+              <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
+            )}
           </TouchableOpacity>
         </Animated.View>
       </GestureDetector>

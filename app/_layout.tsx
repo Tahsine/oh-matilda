@@ -3,9 +3,12 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useCallback, useEffect, useState } from "react";
-import { Image, useColorScheme, View } from "react-native";
+import { Image, View } from "react-native";
+import { colorScheme, useColorScheme } from "nativewind";
+import { useFonts } from 'expo-font';
 import { isModelReady, onDownloadState } from "../lib/models";
 import { prepareEmbedding } from "../lib/provider";
+import { getSetting } from "../lib/settings";
 import OnboardingScreen from "./onboarding";
 import '../polyfills';
 import './global.css';
@@ -13,8 +16,17 @@ import './global.css';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    SpaceGrotesk: require('../assets/fonts/SpaceGrotesk-Regular.ttf'),
+    SpaceGroteskMedium: require('../assets/fonts/SpaceGrotesk-Medium.ttf'),
+    SpaceGroteskBold: require('../assets/fonts/SpaceGrotesk-Bold.ttf'),
+    JetBrainsMono: require('../assets/fonts/JetBrainsMono-Regular.ttf'),
+    JetBrainsMonoMedium: require('../assets/fonts/JetBrainsMono-Medium.ttf'),
+    JetBrainsMonoBold: require('../assets/fonts/JetBrainsMono-Bold.ttf'),
+  });
+
   const [phase, setPhase] = useState<"loading" | "onboarding" | "app">("loading");
-  const theme = useColorScheme();
+  const { colorScheme: activeTheme } = useColorScheme();
 
   const check = useCallback(async () => {
     const ready = await isModelReady();
@@ -24,6 +36,11 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    if (!fontsLoaded) return;
+    const saved = getSetting('theme');
+    setTimeout(() => {
+      if (saved !== 'system') colorScheme.set(saved as 'light' | 'dark');
+    }, 0);
     check();
     const unsub = onDownloadState((s) => {
       if (s.status === "done" || s.status === "skipped") {
@@ -31,10 +48,10 @@ export default function RootLayout() {
       }
     });
     return unsub;
-  }, [check]);
+  }, [fontsLoaded, check]);
 
-  if (phase === "loading") {
-    const bg = theme === "dark" ? "#000000" : "#FFFFFF";
+  if (!fontsLoaded || phase === "loading") {
+    const bg = activeTheme === "dark" ? "#000000" : "#FFFFFF";
     return (
       <View style={{ flex: 1, backgroundColor: bg, justifyContent: "center", alignItems: "center" }}>
         <Image source={require("../assets/images/icon.png")} style={{ width: 200, height: 200 }} />
