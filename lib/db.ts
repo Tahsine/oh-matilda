@@ -40,6 +40,13 @@ function getDB(): SQLiteDatabase {
         chunkIndex INTEGER NOT NULL,
         FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE
       );
+      CREATE TABLE IF NOT EXISTS chunk_embeddings (
+        chunkId TEXT PRIMARY KEY NOT NULL,
+        embedding TEXT NOT NULL,
+        documentId TEXT NOT NULL,
+        FOREIGN KEY (chunkId) REFERENCES chunks(id) ON DELETE CASCADE,
+        FOREIGN KEY (documentId) REFERENCES documents(id) ON DELETE CASCADE
+      );
     `);
   }
   return db;
@@ -307,6 +314,7 @@ export function updateDocumentStatus(
 
 export function deleteDocument(id: string): void {
   const db = getDB();
+  db.runSync('DELETE FROM chunk_embeddings WHERE documentId = ?', id);
   db.runSync('DELETE FROM chunks WHERE documentId = ?', id);
   db.runSync('DELETE FROM documents WHERE id = ?', id);
 }
@@ -331,17 +339,21 @@ export function searchDocumentText(query: string): {
 
 // --- Chunks ---
 
-export function insertChunks(documentId: string, chunks: string[]): void {
+export function insertChunks(documentId: string, chunks: string[]): Chunk[] {
   const db = getDB();
+  const result: Chunk[] = [];
   for (let i = 0; i < chunks.length; i++) {
+    const id = generateId();
     db.runSync(
       'INSERT INTO chunks (id, documentId, content, chunkIndex) VALUES (?, ?, ?, ?)',
-      generateId(),
+      id,
       documentId,
       chunks[i],
       i,
     );
+    result.push({ id, documentId, content: chunks[i], chunkIndex: i });
   }
+  return result;
 }
 
 export function getChunks(documentId: string): Chunk[] {
@@ -352,19 +364,41 @@ export function getChunks(documentId: string): Chunk[] {
   );
 }
 
-export function searchChunks(query: string): { chunkId: string; documentId: string; content: string; score: number }[] {
+// --- Chunk Embeddings ---
+
+type DBRowChunkEmbedding = {
+  chunkId: string;
+  embedding: string;
+  documentId: string;
+};
+
+type DBRowEmbeddingWithContent = DBRowChunkEmbedding & {
+  content: string;
+  documentName: string;
+};
+
+export function getEmbeddingsWithContent(): DBRowEmbeddingWithContent[] {
   const db = getDB();
-  const like = `%${query}%`;
-  const rows = db.getAllSync<DBRowChunk>(
-    'SELECT * FROM chunks WHERE content LIKE ? ORDER BY chunkIndex ASC',
-    like,
+  return db.getAllSync<DBRowEmbeddingWithContent>(
+    `SELECT ce.chunkId, ce.embedding, ce.documentId, c.content, d.name AS documentName
+     FROM chunk_embeddings ce
+     JOIN chunks c ON c.id = ce.chunkId
+     JOIN documents d ON d.id = ce.documentId`,
   );
-  return rows.map((r) => ({
-    chunkId: r.id,
-    documentId: r.documentId,
-    content: r.content,
-    score: 1,
-  }));
+}
+
+export function insertChunkEmbedding(
+  chunkId: string,
+  embedding: number[],
+  documentId: string,
+): void {
+  const db = getDB();
+  db.runSync(
+    'INSERT OR REPLACE INTO chunk_embeddings (chunkId, embedding, documentId) VALUES (?, ?, ?)',
+    chunkId,
+    JSON.stringify(embedding),
+    documentId,
+  );
 }
 
 // --- Utils ---

@@ -55,6 +55,15 @@ export default function SettingsScreen() {
           />
         </View>
 
+        <SectionHeader title="Embedding" />
+
+        <View className="mx-4 rounded-xl overflow-hidden">
+          <SettingsRow
+            label="Modèle BGE-M3"
+            right={<ChevronValue value="Q4_K_M (438 MB)" />}
+          />
+        </View>
+
         <SectionHeader title="Données" />
 
         <View className="mx-4 rounded-xl overflow-hidden">

@@ -12,12 +12,14 @@ import { chunkText } from '../../lib/chunker';
 import {
   deleteDocument,
   getAllDocuments,
-  getDocumentById,
   insertChunks,
   insertDocument,
   updateDocumentStatus,
 } from '../../lib/db';
 import { parseDocument } from '../../lib/document-parser';
+import { generateEmbeddings } from '../../lib/embeddings';
+import { logger } from '../../lib/logger';
+import { storeEmbeddings } from '../../lib/vector-store';
 import type { FileItem } from '../../lib/types';
 
 const FILTERS = ['Tous', 'PDF', 'Word', 'Indexés', 'En attente'];
@@ -41,21 +43,47 @@ export default function FilesScreen() {
     indexingIds.current = new Set(indexingIds.current).add(id);
     rerender();
     updateDocumentStatus(id, 'indexing');
+    logger.index('start', { id, name });
+
+    const isPDF = name.toLowerCase().endsWith('.pdf');
+    let parsed;
 
     try {
-      const response = await fetch(localUri);
-      const buffer = await response.arrayBuffer();
-      const parsed = await parseDocument(name, buffer);
+      if (isPDF) {
+        logger.file('extract PDF', localUri);
+        parsed = await parseDocument(name, localUri);
+      } else {
+        logger.file('fetch', localUri);
+        const response = await fetch(localUri);
+        const buffer = await response.arrayBuffer();
+        logger.file('fetched', { bytes: buffer.byteLength });
+        parsed = await parseDocument(name, buffer);
+      }
 
       if (parsed.success) {
-        const chunks = chunkText(parsed.text);
+        logger.index('parse OK', { chars: parsed.text.length });
+        const chunksText = chunkText(parsed.text);
+        logger.index('chunked', { chunks: chunksText.length });
+        const chunks = insertChunks(id, chunksText);
+        logger.index('chunks stored', { count: chunks.length });
+
+        try {
+          const embeddings = await generateEmbeddings(chunksText);
+          storeEmbeddings(chunks, embeddings);
+          logger.index('embeddings OK', { count: embeddings.length });
+        } catch (e) {
+          logger.index('embeddings FAILED (non-fatal)', e);
+        }
+
         updateDocumentStatus(id, 'indexed', parsed.text);
-        insertChunks(id, chunks);
+        logger.index('done', { status: 'indexed' });
       } else {
+        logger.index('parse FAILED', parsed.error);
         updateDocumentStatus(id, 'error', undefined, parsed.error);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erreur inconnue';
+      logger.index('exception', msg);
       updateDocumentStatus(id, 'error', undefined, msg);
     } finally {
       indexingIds.current = new Set(indexingIds.current);

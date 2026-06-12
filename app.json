@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.borrellesorganization.ohmatilda"
     },
     "web": {
       "output": "static",
@@ -39,11 +40,26 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-dev-client",
+      [
+        "llama.rn",
+        {
+          "enableEntitlements": true,
+          "forceCxx20": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "02c66e90-3e5a-4840-a185-f80322b89313"
+      }
+    },
+    "owner": "borrelles-organization"
   }
 }

@@ -3,14 +3,13 @@ import React, { useCallback } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 import { Badge } from '../ui/Badge';
 import type { FileItem } from '../../lib/types';
-import { formatFileSize, formatFileDate } from '../../lib/utils';
+import { formatFileSize } from '../../lib/utils';
 
 const STATUS_COLOR: Record<FileItem['status'], string> = {
   indexed: '#22C55E',
@@ -57,17 +56,6 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
       }
     });
 
-  const tapGesture = Gesture.Tap()
-    .maxDuration(300)
-    .onEnd(() => {
-      const t = translateX.value;
-      if (Math.abs(t) < 20) {
-        runOnJS(onPress || (() => {}))();
-      }
-    });
-
-  const composed = Gesture.Race(panGesture, tapGesture);
-
   const handleDelete = useCallback(() => {
     translateX.value = withSpring(0);
     onDelete?.();
@@ -88,7 +76,7 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
         </TouchableOpacity>
       </View>
 
-      <GestureDetector gesture={composed}>
+      <GestureDetector gesture={panGesture}>
         <Animated.View style={rowStyle}>
           <TouchableOpacity
             onPress={onPress}
@@ -106,6 +94,11 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
               <Text className="text-neutral-500 text-xs mt-0.5" numberOfLines={1}>
                 {formatFileSize(item.size)} · {item.date}
               </Text>
+              {item.errorMessage && (
+                <Text className="text-red-400 text-xs mt-0.5" numberOfLines={2}>
+                  {item.errorMessage}
+                </Text>
+              )}
             </View>
 
             <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
