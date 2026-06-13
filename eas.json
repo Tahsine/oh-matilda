@@ -7,6 +7,12 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal"
+    },
+    "production": {
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
     }
   },
   "submit": {
