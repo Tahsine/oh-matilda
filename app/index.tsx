@@ -1,7 +1,8 @@
 import { Feather } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatBubble } from '../components/chat/ChatBubble';
 import { ChatInput } from '../components/chat/ChatInput';
@@ -9,6 +10,7 @@ import { ErrorBanner } from '../components/ErrorBanner';
 import { ThinkingIndicator } from '../components/chat/ThinkingIndicator';
 import { onErrors, type AppError } from '../lib/error-handler';
 import { useStreamChat } from '../lib/chat';
+import { useTokens } from '../lib/theme-tokens';
 
 const SUGGESTIONS = [
   'Qu\'est-ce qui est traité dans mes documents ?',
@@ -21,6 +23,8 @@ export default function Index() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [errors, setErrors] = useState<AppError[]>([]);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<{ id: string; text: string } | null>(null);
+  const t = useTokens();
 
   useEffect(() => {
     const unsub = onErrors(setErrors);
@@ -34,7 +38,7 @@ export default function Index() {
     [router],
   );
 
-  const { messages, sendMessage, streaming } = useStreamChat({
+  const { messages, sendMessage, streaming, regenerateResponse, editAndResend } = useStreamChat({
     conversationId: id,
     onConversationChange,
     webSearchEnabled,
@@ -68,19 +72,39 @@ export default function Index() {
     contentRef.current?.scrollToEnd({ animated: true });
   };
 
+  const handleCopy = useCallback(async (content: string) => {
+    await Clipboard.setStringAsync(content);
+  }, []);
+
+  const handleUserLongPress = useCallback((msg: Message) => {
+    Alert.alert('Message', undefined, [
+      { text: 'Copier', onPress: () => handleCopy(msg.content) },
+      {
+        text: 'Modifier',
+        onPress: () => setEditingMessage({ id: msg.id, text: msg.content }),
+      },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  }, [handleCopy]);
+
+  const handleEdit = useCallback((msgId: string, newText: string) => {
+    setEditingMessage(null);
+    editAndResend(msgId, newText);
+  }, [editAndResend]);
+
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <View className="flex-row justify-between items-center px-4 py-3 border-b border-border">
         <TouchableOpacity onPress={() => router.push('/history')}>
-          <Feather name="menu" size={24} className="text-icon" />
+          <Feather name="menu" size={24} color={t.icon} />
         </TouchableOpacity>
 
         <View className="flex-row items-center gap-4">
           <TouchableOpacity onPress={() => router.push('/files')}>
-            <Feather name="folder" size={22} className="text-icon" />
+            <Feather name="folder" size={22} color={t.icon} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/settings')}>
-            <Feather name="settings" size={22} className="text-icon" />
+            <Feather name="settings" size={22} color={t.icon} />
           </TouchableOpacity>
         </View>
       </View>
@@ -126,7 +150,17 @@ export default function Index() {
         {messages.map((msg, i) => {
           const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant';
           if (isLastAssistant && streaming && msg.content === '') return null;
-          return <ChatBubble key={msg.id} role={msg.role} content={msg.content} image={msg.image} />;
+          return (
+            <ChatBubble
+              key={msg.id}
+              role={msg.role}
+              content={msg.content}
+              image={msg.image}
+              onEdit={msg.role === 'user' ? () => handleUserLongPress(msg) : undefined}
+              onCopy={msg.role === 'assistant' ? () => handleCopy(msg.content) : undefined}
+              onRegenerate={msg.role === 'assistant' && isLastAssistant ? () => regenerateResponse?.() : undefined}
+            />
+          );
         })}
 
         {showThinking && <ThinkingIndicator />}
@@ -137,7 +171,7 @@ export default function Index() {
           onPress={scrollToBottom}
           className="absolute bottom-4 right-4 bg-primary rounded-full w-10 h-10 items-center justify-center shadow-lg shadow-black/50"
         >
-          <Feather name="chevron-down" size={22} className="text-white" />
+          <Feather name="chevron-down" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       )}
       </View>
@@ -147,6 +181,9 @@ export default function Index() {
         streaming={streaming}
         webSearch={webSearchEnabled}
         onToggleWebSearch={() => setWebSearchEnabled(v => !v)}
+        editTarget={editingMessage}
+        onEdit={handleEdit}
+        onCancelEdit={() => setEditingMessage(null)}
       />
     </SafeAreaView>
   );

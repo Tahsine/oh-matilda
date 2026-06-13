@@ -5,6 +5,8 @@ import { createAgent } from './agents/matilda-agent';
 import {
   addMessage,
   createConversation,
+  deleteMessage,
+  deleteMessagesAfter,
   getMessages,
   updateConversation,
   updateMessageContent,
@@ -53,6 +55,48 @@ export function useStreamChat({ conversationId, onConversationChange, webSearchE
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<any>(null);
   const isNewConversation = useRef(false);
+  const webSearchRef = useRef(webSearchEnabled);
+  webSearchRef.current = webSearchEnabled;
+
+  const streamToMessage = async (convId: string, assistantMsgId: string, agentMsgs: ModelMessage[], title?: string) => {
+    setStreaming(true);
+    try {
+      const agent = createAgent({ includeWebSearch: webSearchRef.current });
+      const result = await agent.stream({ messages: agentMsgs });
+
+      let content = '';
+      for await (const chunk of result.textStream) {
+        content += chunk;
+        updateMessageContent(convId, assistantMsgId, content);
+        setMessages(prev => {
+          const next = [...prev];
+          const idx = next.findIndex(m => m.id === assistantMsgId);
+          if (idx !== -1) next[idx] = { ...next[idx], content };
+          return next;
+        });
+      }
+
+      updateConversation(convId, {
+        title,
+        preview: content.slice(0, 120),
+        date: new Date(),
+      });
+    } catch (err) {
+      console.error('[chat] stream error:', err);
+      const msg = err instanceof Error ? err.message : 'Une erreur est survenue';
+      pushError({ type: 'agent', message: msg });
+      const errMsg = `**Erreur** : ${msg}`;
+      updateMessageContent(convId, assistantMsgId, errMsg);
+      setMessages(prev => {
+        const next = [...prev];
+        const idx = next.findIndex(m => m.id === assistantMsgId);
+        if (idx !== -1) next[idx] = { ...next[idx], content: errMsg };
+        return next;
+      });
+    } finally {
+      setStreaming(false);
+    }
+  };
 
   useEffect(() => {
     if (conversationId) {
@@ -156,11 +200,57 @@ export function useStreamChat({ conversationId, onConversationChange, webSearchE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId, messages, onConversationChange]);
 
+  const regenerateResponse = useCallback(async () => {
+    if (!activeConversationId || streaming) return;
+    const currentMessages = getMessages(activeConversationId);
+    const lastAssistant = currentMessages[currentMessages.length - 1];
+    if (!lastAssistant || lastAssistant.role !== 'assistant') return;
+
+    deleteMessage(activeConversationId, lastAssistant.id);
+
+    const newAssistant: Message = { id: generateId(), role: 'assistant', content: '' };
+    addMessage(activeConversationId, newAssistant);
+
+    setMessages(prev => {
+      const chopped = prev.filter(m => m.id !== lastAssistant.id);
+      return [...chopped, newAssistant];
+    });
+
+    const remaining = getMessages(activeConversationId).filter(m => m.id !== newAssistant.id);
+    const agentMsgs = await toModelMessages(remaining);
+
+    await streamToMessage(activeConversationId, newAssistant.id, agentMsgs);
+  }, [activeConversationId, streaming]);
+
+  const editAndResend = useCallback(async (msgId: string, newText: string) => {
+    if (!activeConversationId || streaming) return;
+
+    updateMessageContent(activeConversationId, msgId, newText);
+    deleteMessagesAfter(activeConversationId, msgId);
+
+    const newAssistant: Message = { id: generateId(), role: 'assistant', content: '' };
+    addMessage(activeConversationId, newAssistant);
+
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === msgId);
+      if (idx === -1) return [...prev, newAssistant];
+      return [...prev.slice(0, idx), { ...prev[idx], content: newText }, newAssistant];
+    });
+
+    const remaining = getMessages(activeConversationId).filter(m => m.id !== newAssistant.id);
+    const agentMsgs = await toModelMessages(remaining);
+
+    const title = remaining.length <= 2 ? newText.slice(0, 60) : undefined;
+    await streamToMessage(activeConversationId, newAssistant.id, agentMsgs, title);
+  }, [activeConversationId, streaming]);
+
   return {
     messages,
     sendMessage,
     streaming,
     scrollRef,
     activeConversationId,
+    regenerateResponse,
+    editAndResend,
   };
 }

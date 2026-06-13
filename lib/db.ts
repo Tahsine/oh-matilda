@@ -213,6 +213,21 @@ export function updateMessageContent(conversationId: string, msgId: string, cont
   );
 }
 
+export function deleteMessage(conversationId: string, msgId: string): void {
+  const db = getDB();
+  db.runSync('DELETE FROM messages WHERE id = ? AND conversationId = ?', msgId, conversationId);
+}
+
+export function deleteMessagesAfter(conversationId: string, afterMsgId: string): void {
+  const db = getDB();
+  db.runSync(
+    `DELETE FROM messages WHERE conversationId = ? AND createdAt > (SELECT createdAt FROM messages WHERE id = ? AND conversationId = ?)`,
+    conversationId,
+    afterMsgId,
+    conversationId,
+  );
+}
+
 // --- Documents ---
 
 type DBRowDocument = {

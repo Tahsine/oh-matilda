@@ -16,6 +16,7 @@ import { getProviderInfo } from '../../lib/provider';
 import { getBoolean, getSetting, setBoolean, setSetting } from '../../lib/settings';
 import { getAvailableProviders, getActiveProvider, saveProviderConfig, fetchModels, getAdapter } from '../../lib/providers/registry';
 import type { ProviderName } from '../../lib/providers/types';
+import { useTokens } from '../../lib/theme-tokens';
 
 const THEME_OPTIONS = ['system', 'light', 'dark'] as const;
 const THEME_LABELS: Record<string, string> = {
@@ -39,6 +40,7 @@ export default function SettingsScreen() {
   const [embeddingReady, setEmbeddingReady] = useState(false);
   const [theme, setTheme] = useState('system');
   const [, forceUpdate] = useState(0);
+  const t = useTokens();
 
   const [providerName, setProviderName] = useState('ollama-cloud');
   const [apiKey, setApiKey] = useState('');
@@ -182,7 +184,7 @@ export default function SettingsScreen() {
               >
                 <Text className={`text-base ${p.available ? 'text-text-primary' : 'text-text-muted'}`}>{p.label}</Text>
                 {providerName === p.name && (
-                  <Feather name="check" size={18} className="text-info" />
+                    <Feather name="check" size={18} color={t.info} />
                 )}
               </TouchableOpacity>
             ))}
@@ -257,7 +259,7 @@ export default function SettingsScreen() {
                 >
                   <Text className="text-text-primary text-base">{m}</Text>
                   {activeModel === m && (
-                    <Feather name="check" size={18} className="text-info" />
+                  <Feather name="check" size={18} color={t.info} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -323,7 +325,7 @@ export default function SettingsScreen() {
               <Switch
                 value={offline}
                 onValueChange={(v) => { setOffline(v); setBoolean('offline_mode', v); }}
-                trackColor={{ false: '#525252', true: '#22C55E' }}
+                trackColor={{ false: '#525252', true: '#64748B' }}
                 thumbColor="#fff"
               />
             }
@@ -344,7 +346,7 @@ export default function SettingsScreen() {
               <Switch
                 value={reasoning}
                 onValueChange={(v) => { setReasoning(v); setBoolean('reasoning', v); }}
-                trackColor={{ false: '#525252', true: '#22C55E' }}
+                trackColor={{ false: '#525252', true: '#64748B' }}
                 thumbColor="#fff"
               />
             }
@@ -356,7 +358,7 @@ export default function SettingsScreen() {
               <Switch
                 value={memory}
                 onValueChange={(v) => { setMemory(v); setBoolean('memory', v); }}
-                trackColor={{ false: '#525252', true: '#22C55E' }}
+                trackColor={{ false: '#525252', true: '#64748B' }}
                 thumbColor="#fff"
               />
             }
@@ -369,7 +371,7 @@ export default function SettingsScreen() {
           <TouchableOpacity onPress={cycleTheme} activeOpacity={0.7}>
             <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
               <View className="flex-row items-center gap-3">
-                <Feather name={THEME_ICONS[theme]} size={18} className="text-icon" />
+                <Feather name={THEME_ICONS[theme]} size={18} color={t.icon} />
                 <Text className="text-text-primary text-base">Thème</Text>
               </View>
               <ChevronValue value={THEME_LABELS[theme]} />
@@ -413,8 +415,8 @@ export default function SettingsScreen() {
               label="GitHub"
               right={
                 <View className="flex-row items-center gap-2">
-                  <Feather name="github" size={18} className="text-icon" />
-                  <Feather name="external-link" size={16} className="text-icon" />
+                  <Feather name="github" size={18} color={t.icon} />
+                  <Feather name="external-link" size={16} color={t.icon} />
                 </View>
               }
             />

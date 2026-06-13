@@ -89,7 +89,7 @@ export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRenam
         onLayout={(e) => { leftW.value = e.nativeEvent.layout.width; }}
       >
         <TouchableOpacity onPress={handleDelete} className="px-5 py-4">
-          <Feather name="trash-2" size={22} className="text-white" />
+          <Feather name="trash-2" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -98,7 +98,7 @@ export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRenam
         onLayout={(e) => { rightW.value = e.nativeEvent.layout.width; }}
       >
         <TouchableOpacity onPress={handleToggleFavorite} className="px-5 py-4">
-          <Feather name="star" size={22} className="text-white" />
+          <Feather name="star" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -128,7 +128,7 @@ export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRenam
                 ) : (
                   <View className="flex-row items-center gap-2">
                     {item.favorite && (
-                      <Feather name="star" size={14} className="text-warning" />
+                      <Feather name="star" size={14} color="#F97316" />
                     )}
                     <Text className="text-text-primary text-base font-medium mb-1 flex-1" numberOfLines={1}>
                       {item.title || 'Nouvelle conversation'}

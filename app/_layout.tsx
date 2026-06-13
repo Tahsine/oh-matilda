@@ -3,7 +3,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, View } from "react-native";
+import { Image, StatusBar, View } from "react-native";
 import { colorScheme, useColorScheme, vars } from "nativewind";
 import { useFonts } from 'expo-font';
 import { isModelReady, onDownloadState } from "../lib/models";
@@ -26,8 +26,8 @@ const LIGHT_VARS = {
   '--color-text-subtle': '#A3A3A3',
   '--color-icon': '#525252',
   '--color-chevron': '#A3A3A3',
-  '--color-primary': '#22C55E',
-  '--color-primary-hover': '#16A34A',
+  '--color-primary': '#64748B',
+  '--color-primary-hover': '#475569',
   '--color-warning': '#F97316',
   '--color-danger': '#EF4444',
   '--color-info': '#3B82F6',
@@ -52,8 +52,8 @@ const DARK_VARS = {
   '--color-text-subtle': '#737373',
   '--color-icon': '#D4D4D4',
   '--color-chevron': '#737373',
-  '--color-primary': '#22C55E',
-  '--color-primary-hover': '#16A34A',
+  '--color-primary': '#64748B',
+  '--color-primary-hover': '#475569',
   '--color-warning': '#F97316',
   '--color-danger': '#EF4444',
   '--color-info': '#3B82F6',
@@ -109,6 +109,7 @@ export default function RootLayout() {
     const bg = activeTheme === "dark" ? "#000000" : "#FFFFFF";
     return (
       <View style={[{ flex: 1, backgroundColor: bg, justifyContent: "center", alignItems: "center" }, vars(themeVars)]}>
+        <StatusBar barStyle={activeTheme === "dark" ? "light-content" : "dark-content"} backgroundColor={bg} />
         <Image source={require("../assets/images/icon.png")} style={{ width: 200, height: 200 }} />
       </View>
     );
@@ -117,6 +118,7 @@ export default function RootLayout() {
   if (phase === "onboarding") {
     return (
       <View style={vars(themeVars)} className="flex-1">
+        <StatusBar barStyle={activeTheme === "dark" ? "light-content" : "dark-content"} backgroundColor={LIGHT_VARS['--color-bg']} />
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
             <OnboardingScreen />
@@ -128,6 +130,7 @@ export default function RootLayout() {
 
   return (
     <View style={vars(themeVars)} className="flex-1">
+      <StatusBar barStyle={activeTheme === "dark" ? "light-content" : "dark-content"} backgroundColor={themeVars['--color-bg'] as string} />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
           <Stack screenOptions={{ headerShown: false }} />

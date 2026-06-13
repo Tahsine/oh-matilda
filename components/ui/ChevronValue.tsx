@@ -1,16 +1,18 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { Text, View } from 'react-native';
+import { useTokens } from '../../lib/theme-tokens';
 
 type ChevronValueProps = {
   value: string;
 };
 
 export function ChevronValue({ value }: ChevronValueProps) {
+  const t = useTokens();
   return (
     <View className="flex-row items-center gap-1">
       <Text className="text-text-secondary text-base">{value}</Text>
-      <Feather name="chevron-right" size={18} className="text-chevron" />
+      <Feather name="chevron-right" size={18} color={t.chevron} />
     </View>
   );
 }

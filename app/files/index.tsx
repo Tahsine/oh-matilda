@@ -23,6 +23,7 @@ import { pushError } from '../../lib/error-handler';
 import { logger } from '../../lib/logger';
 import { storeEmbeddings } from '../../lib/vector-store';
 import type { FileItem } from '../../lib/types';
+import { useTokens } from '../../lib/theme-tokens';
 
 const FILTERS = ['Tous', 'PDF', 'Word', 'Indexés', 'En attente'];
 
@@ -33,6 +34,7 @@ export default function FilesScreen() {
   const indexingIds = useRef<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
   const [, forceRender] = useState(0);
+  const t = useTokens();
 
   const rerender = useCallback(() => forceRender(n => n + 1), []);
 
@@ -172,7 +174,7 @@ export default function FilesScreen() {
         title="Fichiers"
         rightAction={
           <TouchableOpacity onPress={handlePick} className="p-1" disabled={isLoading}>
-            <Feather name="plus" size={24} className={isLoading ? 'text-text-subtle' : 'text-icon'} />
+            <Feather name="plus" size={24} color={isLoading ? t.textSubtle : t.icon} />
           </TouchableOpacity>
         }
       />
@@ -195,7 +197,7 @@ export default function FilesScreen() {
             refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor="#D4D4D4"
-            colors={['#22C55E']}
+            colors={['#64748B']}
           />
         }
         renderItem={({ item }) => (

@@ -1,11 +1,16 @@
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import { Feather } from '@expo/vector-icons';
+import { useTokens } from '../../lib/theme-tokens';
 
 type ChatBubbleProps = {
   role: 'user' | 'assistant';
   content: string;
   image?: string;
+  onEdit?: () => void;
+  onCopy?: () => void;
+  onRegenerate?: () => void;
 };
 
 const markdownStyles = {
@@ -21,10 +26,16 @@ const markdownStyles = {
   blockquote: { borderLeftColor: '#525252', borderLeftWidth: 3, paddingLeft: 8, marginVertical: 4 },
 };
 
-export function ChatBubble({ role, content, image }: ChatBubbleProps) {
+export function ChatBubble({ role, content, image, onEdit, onCopy, onRegenerate }: ChatBubbleProps) {
+  const t = useTokens();
+
   if (role === 'user') {
     return (
-      <View className="flex-row justify-end px-4 py-1">
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={onEdit}
+        className="flex-row justify-end px-4 py-1"
+      >
         <View className="bg-primary rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%]">
           {image && (
             <Image source={{ uri: image }} className="w-48 h-48 rounded-xl mb-2" resizeMode="cover" />
@@ -33,13 +44,21 @@ export function ChatBubble({ role, content, image }: ChatBubbleProps) {
             <Text className="text-text-primary text-base leading-6 font-sans">{content}</Text>
           ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
   return (
     <View className="px-4 py-1">
       <Markdown style={markdownStyles}>{content || '...'}</Markdown>
+      <View className="flex-row items-center gap-3 mt-2">
+        <TouchableOpacity onPress={onCopy} className="p-1.5">
+          <Feather name="copy" size={16} color={t.icon} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onRegenerate} className="p-1.5">
+          <Feather name="refresh-cw" size={16} color={t.icon} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

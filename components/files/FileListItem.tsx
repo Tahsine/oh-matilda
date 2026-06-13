@@ -12,7 +12,7 @@ import type { FileItem } from '../../lib/types';
 import { formatFileSize } from '../../lib/utils';
 
 const STATUS_COLOR: Record<FileItem['status'], string> = {
-  indexed: '#22C55E',
+  indexed: '#64748B',
   indexing: '#3B82F6',
   pending: '#F97316',
   error: '#EF4444',
@@ -72,7 +72,7 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
         onLayout={(e) => { deleteWidth.value = e.nativeEvent.layout.width; }}
       >
         <TouchableOpacity onPress={handleDelete} className="px-5 py-4">
-          <Feather name="trash-2" size={22} className="text-white" />
+          <Feather name="trash-2" size={22} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -102,7 +102,7 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
             </View>
 
             {item.status === 'indexing' ? (
-              <ActivityIndicator size="small" className="text-info" />
+              <ActivityIndicator size="small" color="#3B82F6" />
             ) : (
               <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
             )}

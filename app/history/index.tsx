@@ -14,6 +14,7 @@ import {
   toggleFavorite,
 } from '../../lib/db';
 import type { Conversation } from '../../lib/types';
+import { useTokens } from '../../lib/theme-tokens';
 
 type Section = {
   title: string;
@@ -26,6 +27,7 @@ export default function HistoryScreen() {
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t = useTokens();
 
   const load = useCallback((query?: string) => {
     const q = query?.trim();
@@ -96,13 +98,13 @@ export default function HistoryScreen() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
         <TouchableOpacity onPress={() => router.back()} className="p-1">
-          <Feather name="arrow-left" size={24} className="text-icon" />
+          <Feather name="arrow-left" size={24} color={t.icon} />
         </TouchableOpacity>
 
         <Text className="text-text-primary text-lg font-semibold">Historique</Text>
 
         <TouchableOpacity onPress={handleNew} className="p-1">
-          <Feather name="plus" size={22} className="text-icon" />
+          <Feather name="plus" size={22} color={t.icon} />
         </TouchableOpacity>
       </View>
 
