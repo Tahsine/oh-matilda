@@ -3,6 +3,7 @@ export type Message = {
   role: 'user' | 'assistant';
   content: string;
   image?: string;
+  condensed?: boolean;
 };
 
 export type FileStatus = 'indexed' | 'pending' | 'indexing' | 'error';
@@ -33,4 +34,6 @@ export type Conversation = {
   preview: string;
   date: Date;
   favorite: boolean;
+  summary?: string;
+  tokenUsage?: number;
 };

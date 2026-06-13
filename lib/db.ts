@@ -57,6 +57,17 @@ export function getDB(): SQLiteDatabase {
     if (!cols.some((c) => c.name === 'image')) {
       db.execSync('ALTER TABLE messages ADD COLUMN image TEXT');
     }
+    // Migration: add condensed column if not present
+    if (!cols.some((c) => c.name === 'condensed')) {
+      db.execSync('ALTER TABLE messages ADD COLUMN condensed INTEGER NOT NULL DEFAULT 0');
+    }
+    const convCols = db.getAllSync<{ name: string }>('PRAGMA table_info(conversations)');
+    if (!convCols.some((c) => c.name === 'summary')) {
+      db.execSync('ALTER TABLE conversations ADD COLUMN summary TEXT');
+    }
+    if (!convCols.some((c) => c.name === 'token_usage')) {
+      db.execSync('ALTER TABLE conversations ADD COLUMN token_usage INTEGER NOT NULL DEFAULT 0');
+    }
   }
   return db;
 }
@@ -67,6 +78,8 @@ type DBRowConversation = {
   preview: string;
   date: number;
   favorite: number;
+  summary: string | null;
+  token_usage: number;
 };
 
 type DBRowMessage = {
@@ -76,6 +89,7 @@ type DBRowMessage = {
   content: string;
   createdAt: number;
   image: string | null;
+  condensed: number;
 };
 
 function rowToConversation(row: DBRowConversation): Conversation {
@@ -85,6 +99,8 @@ function rowToConversation(row: DBRowConversation): Conversation {
     preview: row.preview,
     date: new Date(row.date),
     favorite: row.favorite === 1,
+    summary: row.summary ?? undefined,
+    tokenUsage: row.token_usage,
   };
 }
 
@@ -186,7 +202,7 @@ export function getMessages(conversationId: string): Message[] {
     'SELECT * FROM messages WHERE conversationId = ? ORDER BY createdAt ASC',
     conversationId,
   );
-  return rows.map((r) => ({ id: r.id, role: r.role as 'user' | 'assistant', content: r.content, image: r.image ?? undefined }));
+  return rows.map((r) => ({ id: r.id, role: r.role as 'user' | 'assistant', content: r.content, image: r.image ?? undefined, condensed: r.condensed === 1 }));
 }
 
 export function addMessage(conversationId: string, msg: Message): void {
@@ -224,6 +240,46 @@ export function deleteMessagesAfter(conversationId: string, afterMsgId: string):
     `DELETE FROM messages WHERE conversationId = ? AND createdAt > (SELECT createdAt FROM messages WHERE id = ? AND conversationId = ?)`,
     conversationId,
     afterMsgId,
+    conversationId,
+  );
+}
+
+// --- Summary & Token Usage ---
+
+export function getConversationSummary(id: string): string | null {
+  const db = getDB();
+  const row = db.getFirstSync<{ summary: string | null }>(
+    'SELECT summary FROM conversations WHERE id = ?',
+    id,
+  );
+  return row?.summary ?? null;
+}
+
+export function setConversationSummary(id: string, summary: string): void {
+  const db = getDB();
+  db.runSync('UPDATE conversations SET summary = ? WHERE id = ?', summary, id);
+}
+
+export function getTokenUsage(id: string): number {
+  const db = getDB();
+  const row = db.getFirstSync<{ token_usage: number }>(
+    'SELECT token_usage FROM conversations WHERE id = ?',
+    id,
+  );
+  return row?.token_usage ?? 0;
+}
+
+export function updateTokenUsage(id: string, total: number): void {
+  const db = getDB();
+  db.runSync('UPDATE conversations SET token_usage = ? WHERE id = ?', total, id);
+}
+
+export function markMessagesCondensed(conversationId: string, beforeMsgId: string): void {
+  const db = getDB();
+  db.runSync(
+    `UPDATE messages SET condensed = 1 WHERE conversationId = ? AND createdAt < (SELECT createdAt FROM messages WHERE id = ? AND conversationId = ?)`,
+    conversationId,
+    beforeMsgId,
     conversationId,
   );
 }

@@ -13,7 +13,7 @@ export function EmptyState({ icon, label, description }: EmptyStateProps) {
   const t = useTokens();
   return (
     <View className="flex-1 items-center justify-center px-4 pt-20">
-      <Feather name={icon} size={48} color={t.textMuted} />
+      <Feather name={icon} size={48} color={t.textSubtle} />
       <Text className="text-text-muted text-base mt-4">{label}</Text>
       {description && (
         <Text className="text-text-muted text-sm mt-2 text-center">{description}</Text>

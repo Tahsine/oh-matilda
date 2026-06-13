@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 export const webSearch = tool({
   description: 'Recherche web en temps réel via Tavily',
-  parameters: z.object({
+  inputSchema: z.object({
     query: z.string().describe('La requête de recherche'),
     maxResults: z.number().default(5).describe('Nombre de résultats (max 10)'),
   }),

@@ -10,9 +10,10 @@ const STATUS_LABELS: Record<string, string> = {
 
 type ThinkingIndicatorProps = {
   status?: string;
+  text?: string;
 };
 
-export function ThinkingIndicator({ status = 'thinking' }: ThinkingIndicatorProps) {
+export function ThinkingIndicator({ status = 'thinking', text }: ThinkingIndicatorProps) {
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -37,11 +38,13 @@ export function ThinkingIndicator({ status = 'thinking' }: ThinkingIndicatorProp
     return () => { a1.stop(); a2.stop(); a3.stop(); };
   }, []);
 
+  const label = text ?? STATUS_LABELS[status] ?? status;
+
   return (
     <View className="px-4 py-2">
-      {status !== 'idle' && (
-        <Text className="text-text-muted text-xs mb-2">{STATUS_LABELS[status] || status}</Text>
-      )}
+      {label ? (
+        <Text className="text-text-muted text-xs mb-2">{label}</Text>
+      ) : null}
       <View className="flex-row items-center h-4">
         {[dot1, dot2, dot3].map((dot, i) => (
           <Animated.View

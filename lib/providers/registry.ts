@@ -2,11 +2,12 @@ import type { LanguageModel } from 'ai';
 import { getSetting, setSetting } from '../settings';
 import type { ProviderConfig, ProviderName, ProviderAdapter } from './types';
 import { ollamaCloudAdapter } from './ollama-cloud';
+import { llamaLocalAdapter } from './llama-local-adapter';
 
 const adapters: Record<string, ProviderAdapter> = {
   'ollama-cloud': ollamaCloudAdapter,
   'ollama-hosted': ollamaCloudAdapter,
-  'llama-local': ollamaCloudAdapter,
+  'llama-local': llamaLocalAdapter,
 };
 
 const ENV_FALLBACKS: Partial<Record<string, string | undefined>> = {

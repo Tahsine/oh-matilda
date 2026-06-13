@@ -2,7 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
-import { Alert, FlatList, Linking, RefreshControl, TouchableOpacity } from 'react-native';
+import * as Sharing from 'expo-sharing';
+import { Alert, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FileListItem } from '../../components/files/FileListItem';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -101,8 +102,8 @@ export default function FilesScreen() {
     }
   }, [loadDocuments, rerender]);
 
-  const handleOpenFile = useCallback((uri: string) => {
-    Linking.openURL(uri);
+  const handleOpenFile = useCallback(async (uri: string) => {
+    await Sharing.shareAsync(uri, { dialogTitle: 'Ouvrir avec' });
   }, []);
 
   const handlePick = useCallback(async () => {

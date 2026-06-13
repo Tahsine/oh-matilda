@@ -20,6 +20,7 @@
     "ai": "^6.0.198",
     "ai-sdk-ollama": "^3.8.6",
     "expo": "~54.0.34",
+    "expo-audio": "~1.1.1",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",

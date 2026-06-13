@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,8 +8,11 @@ import { ChatBubble } from '../components/chat/ChatBubble';
 import { ChatInput } from '../components/chat/ChatInput';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { ThinkingIndicator } from '../components/chat/ThinkingIndicator';
+import { showToast } from '../components/ui/Toast';
 import { onErrors, type AppError } from '../lib/error-handler';
 import { useStreamChat } from '../lib/chat';
+import { getMessages } from '../lib/db';
+import type { Message } from '../lib/types';
 import { useTokens } from '../lib/theme-tokens';
 
 const SUGGESTIONS = [
@@ -28,7 +31,7 @@ export default function Index() {
 
   useEffect(() => {
     const unsub = onErrors(setErrors);
-    return unsub;
+    return () => { unsub(); };
   }, []);
 
   const onConversationChange = useCallback(
@@ -38,7 +41,15 @@ export default function Index() {
     [router],
   );
 
-  const { messages, sendMessage, streaming, regenerateResponse, editAndResend } = useStreamChat({
+  useFocusEffect(
+    useCallback(() => {
+      if (id && getMessages(id).length === 0) {
+        router.replace('/');
+      }
+    }, [id]),
+  );
+
+  const { messages, sendMessage, streaming, compacting, regenerating, regenerateResponse, editAndResend, cancelStreaming, lastDurationMs, lastTokenCount } = useStreamChat({
     conversationId: id,
     onConversationChange,
     webSearchEnabled,
@@ -74,18 +85,8 @@ export default function Index() {
 
   const handleCopy = useCallback(async (content: string) => {
     await Clipboard.setStringAsync(content);
+    showToast('Copié', 'Texte copié dans le presse-papier');
   }, []);
-
-  const handleUserLongPress = useCallback((msg: Message) => {
-    Alert.alert('Message', undefined, [
-      { text: 'Copier', onPress: () => handleCopy(msg.content) },
-      {
-        text: 'Modifier',
-        onPress: () => setEditingMessage({ id: msg.id, text: msg.content }),
-      },
-      { text: 'Annuler', style: 'cancel' },
-    ]);
-  }, [handleCopy]);
 
   const handleEdit = useCallback((msgId: string, newText: string) => {
     setEditingMessage(null);
@@ -156,14 +157,17 @@ export default function Index() {
               role={msg.role}
               content={msg.content}
               image={msg.image}
-              onEdit={msg.role === 'user' ? () => handleUserLongPress(msg) : undefined}
-              onCopy={msg.role === 'assistant' ? () => handleCopy(msg.content) : undefined}
+              condensed={msg.condensed}
+              durationMs={isLastAssistant ? lastDurationMs : undefined}
+              tokenCount={isLastAssistant ? lastTokenCount : undefined}
+              onEdit={msg.role === 'user' && !msg.condensed ? () => setEditingMessage({ id: msg.id, text: msg.content }) : undefined}
+              onCopy={() => handleCopy(msg.content)}
               onRegenerate={msg.role === 'assistant' && isLastAssistant ? () => regenerateResponse?.() : undefined}
             />
           );
         })}
 
-        {showThinking && <ThinkingIndicator />}
+        {showThinking && <ThinkingIndicator text={compacting ? 'Compaction en cours...' : regenerating ? 'Régénération...' : undefined} />}
       </ScrollView>
 
       {scrolledUp && messages.length > 0 && (
@@ -179,6 +183,7 @@ export default function Index() {
       <ChatInput
         onSend={sendMessage}
         streaming={streaming}
+        onStop={cancelStreaming}
         webSearch={webSearchEnabled}
         onToggleWebSearch={() => setWebSearchEnabled(v => !v)}
         editTarget={editingMessage}

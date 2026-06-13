@@ -1,18 +1,19 @@
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { colorScheme } from 'nativewind';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, Modal, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronValue } from '../../components/ui/ChevronValue';
 import { DestructiveRow } from '../../components/ui/DestructiveRow';
 import { Divider } from '../../components/ui/Divider';
+import { LoadingModal } from '../../components/ui/LoadingModal';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { SettingsRow } from '../../components/ui/SettingsRow';
 import { deleteAllConversations, getAllDocuments, deleteDocument } from '../../lib/db';
-import { isModelReady } from '../../lib/models';
-import { getProviderInfo } from '../../lib/provider';
+import { isGemma4Ready, isModelReady, isMmprojReady, onGemma4DownloadState, startGemma4Download, type DownloadState } from '../../lib/models';
+import { getProviderInfo, prepareLocalLLM, reloadLocalLLM, unloadLocalLLM } from '../../lib/provider';
 import { getBoolean, getSetting, setBoolean, setSetting } from '../../lib/settings';
 import { getAvailableProviders, getActiveProvider, saveProviderConfig, fetchModels, getAdapter } from '../../lib/providers/registry';
 import type { ProviderName } from '../../lib/providers/types';
@@ -34,8 +35,8 @@ const THEME_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
 export default function SettingsScreen() {
   const [offline, setOffline] = useState(false);
   const [reasoning, setReasoning] = useState(false);
-  const [memory, setMemory] = useState(true);
   const [temperature, setTemperature] = useState('1.0');
+  const [customPrompt, setCustomPrompt] = useState('');
   const [serverUrl, setServerUrl] = useState('');
   const [embeddingReady, setEmbeddingReady] = useState(false);
   const [theme, setTheme] = useState('system');
@@ -55,13 +56,29 @@ export default function SettingsScreen() {
 
   const { provider: providerLabel } = getProviderInfo();
 
+  const [localLlmReady, setLocalLlmReady] = useState(false);
+  const [gemma4Dl, setGemma4Dl] = useState<DownloadState>({ status: 'idle', progress: 0, path: null });
+  const [downloadingLlm, setDownloadingLlm] = useState(false);
+  const [llmNCtx, setLlmNCtx] = useState('4096');
+  const [llmNGpuLayers, setLlmNGpuLayers] = useState('99');
+  const [llmNBatch, setLlmNBatch] = useState('512');
+  const [llmNThreads, setLlmNThreads] = useState('4');
+  const [llmFlashAttn, setLlmFlashAttn] = useState(false);
+  const [reloading, setReloading] = useState(false);
+  const [preparingLocal, setPreparingLocal] = useState(false);
+
   const load = useCallback(async () => {
     setOffline(getBoolean('offline_mode'));
     setReasoning(getBoolean('reasoning'));
-    setMemory(getBoolean('memory'));
     setTemperature(getSetting('temperature'));
+    setCustomPrompt(getSetting('custom_prompt'));
     setTheme(getSetting('theme'));
     setEmbeddingReady(await isModelReady());
+    setLlmNCtx(getSetting('llm_n_ctx'));
+    setLlmNGpuLayers(getSetting('llm_n_gpu_layers'));
+    setLlmNBatch(getSetting('llm_n_batch'));
+    setLlmNThreads(getSetting('llm_n_threads'));
+    setLlmFlashAttn(getBoolean('llm_flash_attn'));
 
     const config = getActiveProvider();
     setProviderName(config.provider);
@@ -70,9 +87,29 @@ export default function SettingsScreen() {
     setApiKeyFromSettings(!!settingsKey);
     setActiveModel(config.activeModel);
     setServerUrl(getSetting('server_url') || config.baseUrl);
+
+    const g4 = await isGemma4Ready();
+    const mp = await isMmprojReady();
+    setLocalLlmReady(g4 && mp);
   }, []);
 
   useFocusEffect(useCallback(() => { load(); return undefined; }, [load]));
+
+  useEffect(() => {
+    const unsub = onGemma4DownloadState(setGemma4Dl);
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (gemma4Dl.status === 'done' || gemma4Dl.status === 'skipped') {
+      setDownloadingLlm(false);
+      setLocalLlmReady(gemma4Dl.status === 'done');
+      if (gemma4Dl.status === 'done' && providerName === 'llama-local') {
+        setPreparingLocal(true);
+        prepareLocalLLM().finally(() => setPreparingLocal(false));
+      }
+    }
+  }, [gemma4Dl, providerName]);
 
   const cycleTheme = () => {
     const idx = THEME_OPTIONS.indexOf(theme as typeof THEME_OPTIONS[number]);
@@ -120,16 +157,59 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleSelectProvider = (name: string) => {
+  const handleSelectProvider = async (name: string) => {
+    const prevProvider = providerName;
     setProviderName(name);
     const adapter = getAdapter(name);
     saveProviderConfig({ provider: name as any, activeModel: adapter.defaultModel });
     setActiveModel(adapter.defaultModel);
-    if (name !== 'ollama-cloud') {
+
+    // Unload previous local model if switching away
+    if (prevProvider === 'llama-local' && name !== 'llama-local') {
+      await unloadLocalLLM();
+    }
+
+    // Prepare local model if switching to it
+    if (name === 'llama-local' && name !== prevProvider) {
+      setPreparingLocal(true);
+      const ok = await prepareLocalLLM();
+      setPreparingLocal(false);
+      if (!ok) {
+        Alert.alert('Erreur', 'Impossible de préparer le modèle local. Vérifiez que le modèle est téléchargé.');
+        saveProviderConfig({ provider: prevProvider as any, activeModel: getAdapter(prevProvider).defaultModel });
+        setProviderName(prevProvider);
+        setActiveModel(getAdapter(prevProvider).defaultModel);
+      }
+    }
+
+    if (name === 'ollama-cloud') {
+      setShowApiKeyModal(true);
+    } else if (name === 'ollama-hosted') {
       setShowApiKeyModal(true);
     }
     setShowProviderPicker(false);
     load();
+  };
+
+  const handleDownloadLlm = async () => {
+    setDownloadingLlm(true);
+    await startGemma4Download();
+  };
+
+  const handleApplyLlmParams = async () => {
+    setSetting('llm_n_ctx', llmNCtx);
+    setSetting('llm_n_gpu_layers', llmNGpuLayers);
+    setSetting('llm_n_batch', llmNBatch);
+    setSetting('llm_n_threads', llmNThreads);
+    setBoolean('llm_flash_attn', llmFlashAttn);
+    setReloading(true);
+    try {
+      await reloadLocalLLM();
+    } catch (err) {
+      console.error('[settings] reloadLocalLLM error:', err);
+    } finally {
+      setReloading(false);
+    }
   };
 
   const handleSaveApiKey = () => {
@@ -339,30 +419,35 @@ export default function SettingsScreen() {
             label="Température"
             right={<ChevronValue value={temperature} />}
           />
-          <Divider />
-          <SettingsRow
-            label="Raisonnement"
-            right={
-              <Switch
-                value={reasoning}
-                onValueChange={(v) => { setReasoning(v); setBoolean('reasoning', v); }}
-                trackColor={{ false: '#525252', true: '#64748B' }}
-                thumbColor="#fff"
+          {providerName === 'llama-local' && (
+            <>
+              <Divider />
+              <SettingsRow
+                label="Raisonnement"
+                right={
+                  <Switch
+                    value={reasoning}
+                    onValueChange={(v) => { setReasoning(v); setBoolean('reasoning', v); }}
+                    trackColor={{ false: '#525252', true: '#64748B' }}
+                    thumbColor="#fff"
+                  />
+                }
               />
-            }
-          />
-          <Divider />
-          <SettingsRow
-            label="Mémoire"
-            right={
-              <Switch
-                value={memory}
-                onValueChange={(v) => { setMemory(v); setBoolean('memory', v); }}
-                trackColor={{ false: '#525252', true: '#64748B' }}
-                thumbColor="#fff"
-              />
-            }
-          />
+              <Divider />
+            </>
+          )}
+          <View className="px-4 py-3.5 bg-surface">
+            <Text className="text-text-primary text-base mb-2">Instructions personnalisées</Text>
+            <TextInput
+              value={customPrompt}
+              onChangeText={(v) => { setCustomPrompt(v); setSetting('custom_prompt', v); }}
+              placeholder="Ex: Tu es mon assistant juridique..."
+              placeholderTextColor={t.inputPlaceholder}
+              multiline
+              className="text-text-primary text-sm bg-bg rounded-xl px-3 py-2 min-h-[80px]"
+              style={{ textAlignVertical: 'top' }}
+            />
+          </View>
         </View>
 
         <SectionHeader title="Application" />
@@ -397,6 +482,125 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {providerName === 'llama-local' && (
+          <>
+            <SectionHeader title="LLM Local" />
+            <View className="mx-4 rounded-xl overflow-hidden">
+              <SettingsRow
+                label="Statut"
+                right={
+                  <Text className={localLlmReady ? 'text-primary text-base' : 'text-warning text-base'}>
+                    {localLlmReady ? 'Prêt' : 'Non téléchargé'}
+                  </Text>
+                }
+              />
+              {!localLlmReady && (
+                <>
+                  <Divider />
+                  <TouchableOpacity
+                    onPress={handleDownloadLlm}
+                    disabled={downloadingLlm}
+                    activeOpacity={0.7}
+                  >
+                    <SettingsRow
+                      label={downloadingLlm ? 'Téléchargement...' : 'Télécharger Gemma 4'}
+                      right={
+                        downloadingLlm ? (
+                          <Text className="text-text-muted text-sm">
+                            {Math.round(gemma4Dl.progress * 100)}%
+                          </Text>
+                        ) : (
+                          <Feather name="download" size={18} color={t.icon} />
+                        )
+                      }
+                    />
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+
+            {localLlmReady && (
+              <>
+                <SectionHeader title="Paramètres LLM" />
+                <View className="mx-4 rounded-xl overflow-hidden">
+                  <View className="px-4 py-2 bg-warning/10">
+                    <Text className="text-warning text-xs">
+                      Attention : ces paramètres affectent la consommation GPU et la mémoire.
+                      Des valeurs élevées peuvent ralentir ou planter l'application.
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
+                    <Text className="text-text-primary text-base">Contexte (n_ctx)</Text>
+                    <TextInput
+                      value={llmNCtx}
+                      onChangeText={setLlmNCtx}
+                      keyboardType="number-pad"
+                      className="text-text-primary text-sm text-right w-24 bg-bg rounded-xl px-3 py-1"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                  <Divider />
+                  <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
+                    <Text className="text-text-primary text-base">Couches GPU</Text>
+                    <TextInput
+                      value={llmNGpuLayers}
+                      onChangeText={setLlmNGpuLayers}
+                      keyboardType="number-pad"
+                      className="text-text-primary text-sm text-right w-24 bg-bg rounded-xl px-3 py-1"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                  <Divider />
+                  <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
+                    <Text className="text-text-primary text-base">Batch</Text>
+                    <TextInput
+                      value={llmNBatch}
+                      onChangeText={setLlmNBatch}
+                      keyboardType="number-pad"
+                      className="text-text-primary text-sm text-right w-24 bg-bg rounded-xl px-3 py-1"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                  <Divider />
+                  <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
+                    <Text className="text-text-primary text-base">Threads</Text>
+                    <TextInput
+                      value={llmNThreads}
+                      onChangeText={setLlmNThreads}
+                      keyboardType="number-pad"
+                      className="text-text-primary text-sm text-right w-24 bg-bg rounded-xl px-3 py-1"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                  <Divider />
+                  <SettingsRow
+                    label="Flash Attention"
+                    right={
+                      <Switch
+                        value={llmFlashAttn}
+                        onValueChange={setLlmFlashAttn}
+                        trackColor={{ false: '#525252', true: '#64748B' }}
+                        thumbColor="#fff"
+                      />
+                    }
+                  />
+                  <TouchableOpacity onPress={handleApplyLlmParams} disabled={reloading} activeOpacity={0.7}>
+                    <View className="bg-primary py-3.5 items-center">
+                      <Text className="text-white text-base font-semibold">
+                        {reloading ? 'Application...' : 'Appliquer'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </>
+        )}
+
         <SectionHeader title="Données" />
 
         <View className="mx-4 rounded-xl overflow-hidden">
@@ -424,6 +628,13 @@ export default function SettingsScreen() {
           <Divider />
           <SettingsRow label="Licence" right={<Text className="text-text-secondary text-base">MIT</Text>} />
         </View>
+
+        {(reloading || preparingLocal) && (
+          <LoadingModal
+            visible
+            message={reloading ? 'Rechargement du modèle LLM...' : 'Préparation du modèle local...'}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

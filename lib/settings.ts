@@ -1,11 +1,10 @@
 import { getDB } from './db';
 
-type SettingKey = 'offline_mode' | 'reasoning' | 'memory' | 'temperature' | 'server_url' | 'provider' | 'active_model' | 'embedding_model' | 'theme' | 'api_key';
+type SettingKey = 'offline_mode' | 'reasoning' | 'temperature' | 'server_url' | 'provider' | 'active_model' | 'embedding_model' | 'theme' | 'api_key' | 'onboarded' | 'llm_n_ctx' | 'llm_n_gpu_layers' | 'llm_n_batch' | 'llm_n_threads' | 'llm_flash_attn' | 'custom_prompt';
 
 const DEFAULTS: Record<SettingKey, string> = {
   offline_mode: 'false',
   reasoning: 'false',
-  memory: 'true',
   temperature: '1.0',
   server_url: '',
   provider: 'ollama-cloud',
@@ -13,6 +12,13 @@ const DEFAULTS: Record<SettingKey, string> = {
   embedding_model: 'BGE-M3 Q4_K_M (438 MB)',
   theme: 'system',
   api_key: '',
+  onboarded: 'false',
+  llm_n_ctx: '4096',
+  llm_n_gpu_layers: '99',
+  llm_n_batch: '512',
+  llm_n_threads: '4',
+  llm_flash_attn: 'false',
+  custom_prompt: '',
 };
 
 export function getSetting(key: SettingKey): string {

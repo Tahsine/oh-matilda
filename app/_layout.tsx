@@ -6,7 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, StatusBar, View } from "react-native";
 import { colorScheme, useColorScheme, vars } from "nativewind";
 import { useFonts } from 'expo-font';
-import { isModelReady, onDownloadState } from "../lib/models";
+import { Toast } from "../components/ui/Toast";
+import { isModelReady } from "../lib/models";
 import { prepareEmbedding } from "../lib/provider";
 import { getSetting } from "../lib/settings";
 import OnboardingScreen from "./onboarding";
@@ -86,10 +87,22 @@ export default function RootLayout() {
   );
 
   const check = useCallback(async () => {
+    const onboarded = getSetting('onboarded') === 'true';
+    if (!onboarded) {
+      setPhase("onboarding");
+      SplashScreen.hideAsync();
+      return;
+    }
     const ready = await isModelReady();
     setPhase(ready ? "app" : "onboarding");
     SplashScreen.hideAsync();
-    if (ready) prepareEmbedding();
+    if (ready) {
+      prepareEmbedding();
+    }
+  }, []);
+
+  const handleOnboardingComplete = useCallback(() => {
+    setPhase("app");
   }, []);
 
   useEffect(() => {
@@ -97,12 +110,6 @@ export default function RootLayout() {
     const saved = getSetting('theme');
     if (saved !== 'system') colorScheme.set(saved as 'light' | 'dark');
     check();
-    const unsub = onDownloadState((s) => {
-      if (s.status === "done" || s.status === "skipped") {
-        setPhase("app");
-      }
-    });
-    return unsub;
   }, [fontsLoaded, check]);
 
   if (!fontsLoaded || phase === "loading") {
@@ -118,10 +125,10 @@ export default function RootLayout() {
   if (phase === "onboarding") {
     return (
       <View style={vars(themeVars)} className="flex-1">
-        <StatusBar barStyle={activeTheme === "dark" ? "light-content" : "dark-content"} backgroundColor={LIGHT_VARS['--color-bg']} />
+        <StatusBar barStyle={activeTheme === "dark" ? "light-content" : "dark-content"} backgroundColor={themeVars['--color-bg'] as string} />
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
-            <OnboardingScreen />
+            <OnboardingScreen onComplete={handleOnboardingComplete} />
           </KeyboardProvider>
         </GestureHandlerRootView>
       </View>
@@ -133,9 +140,10 @@ export default function RootLayout() {
       <StatusBar barStyle={activeTheme === "dark" ? "light-content" : "dark-content"} backgroundColor={themeVars['--color-bg'] as string} />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
-          <Stack screenOptions={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: themeVars['--color-bg'] as string } }} />
         </KeyboardProvider>
       </GestureHandlerRootView>
+      <Toast />
     </View>
   );
 }

@@ -15,7 +15,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
       return embedding;
     });
   });
-  queue = task.catch(() => {});
+  queue = task.then(() => {}, () => {});
   return task;
 }
 
@@ -31,6 +31,6 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
       return embeddings;
     });
   });
-  queue = task.catch(() => {});
+  queue = task.then(() => {}, () => {});
   return task;
 }

@@ -2,12 +2,16 @@ import React from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { Feather } from '@expo/vector-icons';
+import { showToast } from '../ui/Toast';
 import { useTokens } from '../../lib/theme-tokens';
 
 type ChatBubbleProps = {
   role: 'user' | 'assistant';
   content: string;
   image?: string;
+  condensed?: boolean;
+  durationMs?: number;
+  tokenCount?: number;
   onEdit?: () => void;
   onCopy?: () => void;
   onRegenerate?: () => void;
@@ -26,16 +30,19 @@ const markdownStyles = {
   blockquote: { borderLeftColor: '#525252', borderLeftWidth: 3, paddingLeft: 8, marginVertical: 4 },
 };
 
-export function ChatBubble({ role, content, image, onEdit, onCopy, onRegenerate }: ChatBubbleProps) {
+function showInfoToast(role: string, durationMs?: number, tokenCount?: number) {
+  const parts: string[] = [];
+  if (tokenCount !== undefined) parts.push(`Tokens: ${tokenCount}`);
+  if (durationMs !== undefined) parts.push(`Temps: ${durationMs}ms`);
+  showToast(role === 'assistant' ? 'Réponse' : 'Message', parts.join(' | ') || 'Aucune information');
+}
+
+export function ChatBubble({ role, content, image, condensed, durationMs, tokenCount, onEdit, onCopy, onRegenerate }: ChatBubbleProps) {
   const t = useTokens();
 
   if (role === 'user') {
     return (
-      <TouchableOpacity
-        activeOpacity={1}
-        onLongPress={onEdit}
-        className="flex-row justify-end px-4 py-1"
-      >
+      <View className="items-end px-4 py-1">
         <View className="bg-primary rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%]">
           {image && (
             <Image source={{ uri: image }} className="w-48 h-48 rounded-xl mb-2" resizeMode="cover" />
@@ -44,7 +51,17 @@ export function ChatBubble({ role, content, image, onEdit, onCopy, onRegenerate 
             <Text className="text-text-primary text-base leading-6 font-sans">{content}</Text>
           ) : null}
         </View>
-      </TouchableOpacity>
+        <View className="flex-row items-center gap-2 mt-1">
+          {!condensed && onEdit && (
+            <TouchableOpacity onPress={onEdit} className="p-1">
+              <Feather name="edit-2" size={14} color={t.icon} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={onCopy} className="p-1">
+            <Feather name="copy" size={14} color={t.icon} />
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   }
 
@@ -55,8 +72,13 @@ export function ChatBubble({ role, content, image, onEdit, onCopy, onRegenerate 
         <TouchableOpacity onPress={onCopy} className="p-1.5">
           <Feather name="copy" size={16} color={t.icon} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={onRegenerate} className="p-1.5">
-          <Feather name="refresh-cw" size={16} color={t.icon} />
+        {!condensed && onRegenerate && (
+          <TouchableOpacity onPress={onRegenerate} className="p-1.5">
+            <Feather name="refresh-cw" size={16} color={t.icon} />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity onPress={() => showInfoToast(role, durationMs, tokenCount)} className="p-1.5">
+          <Feather name="info" size={16} color={t.icon} />
         </TouchableOpacity>
       </View>
     </View>

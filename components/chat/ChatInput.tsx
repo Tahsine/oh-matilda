@@ -1,13 +1,14 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useTokens } from '../../lib/theme-tokens';
 
 type ChatInputProps = {
   onSend: (text: string, image?: string) => void;
   streaming: boolean;
+  onStop?: () => void;
   webSearch?: boolean;
   onToggleWebSearch?: () => void;
   editTarget?: { id: string; text: string } | null;
@@ -15,7 +16,7 @@ type ChatInputProps = {
   onCancelEdit?: () => void;
 };
 
-export function ChatInput({ onSend, streaming, webSearch = false, onToggleWebSearch, editTarget, onEdit, onCancelEdit }: ChatInputProps) {
+export function ChatInput({ onSend, streaming, onStop, webSearch = false, onToggleWebSearch, editTarget, onEdit, onCancelEdit }: ChatInputProps) {
   const [value, setValue] = useState(editTarget?.text ?? '');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const t = useTokens();
@@ -104,17 +105,12 @@ export function ChatInput({ onSend, streaming, webSearch = false, onToggleWebSea
           </View>
 
           <View className="flex-row items-center gap-2">
-            <TouchableOpacity className="p-2">
-              <Feather name="mic" size={20} color={t.icon} />
-            </TouchableOpacity>
-
             <TouchableOpacity
-              onPress={handleSend}
-              disabled={(!value.trim() && !selectedImage) || streaming}
-              className="bg-primary rounded-full h-10 w-10 items-center justify-center ml-1"
+              onPress={streaming ? onStop : handleSend}
+              className={`rounded-full h-10 w-10 items-center justify-center ml-1 ${streaming ? 'bg-danger' : 'bg-primary'}`}
             >
               {streaming ? (
-                <ActivityIndicator size="small" color={t.white} />
+                <Feather name="square" size={18} color={t.white} />
               ) : (
                 <Ionicons name="arrow-up" size={20} color={t.white} />
               )}

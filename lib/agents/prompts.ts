@@ -26,4 +26,21 @@ export const MATILDA_WEB_SEARCH_PROMPT = MATILDA_SYSTEM_PROMPT + `
 ## Recherche web
 - Tu as accès à l'outil webSearch pour chercher des informations en ligne en temps réel.
 - Utilise webSearch quand la question demande une information récente, générale, ou absente des documents de l'utilisateur.
-- Tu peux combiner searchDocuments et webSearch pour enrichir ta réponse.`;
+- Tu peux combiner searchDocuments et webSearch pour enrichir ta réponse.
+- IMPORTANT : Quand le message de l'utilisateur commence par "[Recherche Web]", tu DOIS utiliser webSearch sans exception.`;
+
+const THINK_TOKEN = '<|think|>\n';
+
+export function getSystemPrompt({ thinking, webSearch }: { thinking: boolean; webSearch: boolean }) {
+  const base = webSearch ? MATILDA_WEB_SEARCH_PROMPT : MATILDA_SYSTEM_PROMPT;
+  return thinking ? THINK_TOKEN + base : base;
+}
+
+export function buildSystemPrompt({ thinking, webSearch, customPrompt }: { thinking: boolean; webSearch: boolean; customPrompt: string }) {
+  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const dateLine = `Date du jour : ${today}.\n\n`;
+  const base = getSystemPrompt({ thinking, webSearch });
+  const withDate = dateLine + base;
+  if (!customPrompt.trim()) return withDate;
+  return `${customPrompt.trim()}\n\n---\n\n${withDate}`;
+}

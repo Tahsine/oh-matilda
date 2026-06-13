@@ -9,12 +9,12 @@ type ErrorBannerProps = {
 
 export function ErrorBanner({ error }: ErrorBannerProps) {
   const slide = useRef(new Animated.Value(-100)).current;
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     Animated.spring(slide, { toValue: 0, useNativeDriver: true }).start();
     timer.current = setTimeout(() => handleDismiss(), 8000);
-    return () => clearTimeout(timer.current);
+    return () => { if (timer.current) clearTimeout(timer.current); };
   }, []);
 
   const handleDismiss = () => {
