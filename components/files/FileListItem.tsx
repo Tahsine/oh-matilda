@@ -68,11 +68,11 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
   return (
     <View className="overflow-hidden">
       <View
-        className="absolute inset-y-0 left-0 justify-center bg-red-500"
+        className="absolute inset-y-0 left-0 justify-center bg-danger"
         onLayout={(e) => { deleteWidth.value = e.nativeEvent.layout.width; }}
       >
         <TouchableOpacity onPress={handleDelete} className="px-5 py-4">
-          <Feather name="trash-2" size={22} color="white" />
+          <Feather name="trash-2" size={22} className="text-white" />
         </TouchableOpacity>
       </View>
 
@@ -81,28 +81,28 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
           <TouchableOpacity
             onPress={onPress}
             activeOpacity={0.7}
-            className="flex-row items-center py-4 px-4 bg-[#1E1E1E] border-b border-neutral-800/60"
+            className="flex-row items-center py-4 px-4 bg-bg border-b border-border"
           >
-            <View className="w-10 h-10 rounded-lg bg-[#2A2A2A] items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-lg bg-surface items-center justify-center mr-3">
               <Feather name={FILE_ICON[item.type]} size={20} color={STATUS_COLOR[item.status]} />
             </View>
 
             <View className="flex-1 mr-3">
-              <Text className="text-white text-sm font-medium" numberOfLines={1}>
+              <Text className="text-text-primary text-sm font-medium" numberOfLines={1}>
                 {item.name}
               </Text>
-              <Text className="text-neutral-500 text-xs mt-0.5" numberOfLines={1}>
+              <Text className="text-text-muted text-xs mt-0.5" numberOfLines={1}>
                 {formatFileSize(item.size)} · {item.date}
               </Text>
               {item.errorMessage && (
-                <Text className="text-red-400 text-xs mt-0.5" numberOfLines={2}>
+                <Text className="text-danger text-xs mt-0.5" numberOfLines={2}>
                   {item.errorMessage}
                 </Text>
               )}
             </View>
 
             {item.status === 'indexing' ? (
-              <ActivityIndicator size="small" color="#3B82F6" />
+              <ActivityIndicator size="small" className="text-info" />
             ) : (
               <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
             )}

@@ -85,20 +85,20 @@ export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRenam
   return (
     <View className="overflow-hidden">
       <View
-        className="absolute inset-y-0 left-0 justify-center bg-red-500"
+        className="absolute inset-y-0 left-0 justify-center bg-danger"
         onLayout={(e) => { leftW.value = e.nativeEvent.layout.width; }}
       >
         <TouchableOpacity onPress={handleDelete} className="px-5 py-4">
-          <Feather name="trash-2" size={22} color="white" />
+          <Feather name="trash-2" size={22} className="text-white" />
         </TouchableOpacity>
       </View>
 
       <View
-        className="absolute inset-y-0 right-0 justify-center bg-amber-500"
+        className="absolute inset-y-0 right-0 justify-center bg-warning"
         onLayout={(e) => { rightW.value = e.nativeEvent.layout.width; }}
       >
         <TouchableOpacity onPress={handleToggleFavorite} className="px-5 py-4">
-          <Feather name="star" size={22} color="white" />
+          <Feather name="star" size={22} className="text-white" />
         </TouchableOpacity>
       </View>
 
@@ -111,7 +111,7 @@ export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRenam
               setEditText(item.title);
               setEditing(true);
             }}
-            className="px-4 py-3 bg-[#1E1E1E]"
+            className="px-4 py-3 bg-bg"
           >
             <View className="flex-row justify-between items-start">
               <View className="flex-1 mr-3">
@@ -122,24 +122,24 @@ export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRenam
                     onBlur={handleSubmitRename}
                     onSubmitEditing={handleSubmitRename}
                     autoFocus
-                    className="text-white text-base font-medium mb-1 border-b border-amber-500 pb-0.5"
+                    className="text-text-primary text-base font-medium mb-1 border-b border-warning pb-0.5"
                     selectTextOnFocus
                   />
                 ) : (
                   <View className="flex-row items-center gap-2">
                     {item.favorite && (
-                      <Feather name="star" size={14} color="#F59E0B" />
+                      <Feather name="star" size={14} className="text-warning" />
                     )}
-                    <Text className="text-white text-base font-medium mb-1 flex-1" numberOfLines={1}>
+                    <Text className="text-text-primary text-base font-medium mb-1 flex-1" numberOfLines={1}>
                       {item.title || 'Nouvelle conversation'}
                     </Text>
                   </View>
                 )}
-                <Text className="text-neutral-500 text-sm" numberOfLines={1}>
+                <Text className="text-text-muted text-sm" numberOfLines={1}>
                   {item.preview}
                 </Text>
               </View>
-              <Text className="text-neutral-500 text-xs mt-1 shrink-0">
+              <Text className="text-text-muted text-xs mt-1 shrink-0">
                 {formatRelativeDate(item.date)}
               </Text>
             </View>

@@ -25,12 +25,12 @@ export function ChatBubble({ role, content, image }: ChatBubbleProps) {
   if (role === 'user') {
     return (
       <View className="flex-row justify-end px-4 py-1">
-        <View className="bg-slate-500 rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%]">
+        <View className="bg-primary rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%]">
           {image && (
             <Image source={{ uri: image }} className="w-48 h-48 rounded-xl mb-2" resizeMode="cover" />
           )}
           {content ? (
-            <Text className="text-white text-base leading-6 font-sans">{content}</Text>
+            <Text className="text-text-primary text-base leading-6 font-sans">{content}</Text>
           ) : null}
         </View>
       </View>

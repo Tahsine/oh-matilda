@@ -38,9 +38,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (!fontsLoaded) return;
     const saved = getSetting('theme');
-    setTimeout(() => {
-      if (saved !== 'system') colorScheme.set(saved as 'light' | 'dark');
-    }, 0);
+    if (saved !== 'system') colorScheme.set(saved as 'light' | 'dark');
     check();
     const unsub = onDownloadState((s) => {
       if (s.status === "done" || s.status === "skipped") {

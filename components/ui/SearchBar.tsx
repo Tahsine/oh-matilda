@@ -11,12 +11,12 @@ type SearchBarProps = {
 export function SearchBar({ placeholder = 'Rechercher...', value, onChangeText }: SearchBarProps) {
   return (
     <View className="mx-4 mt-3 mb-2">
-      <View className="flex-row items-center bg-[#2A2A2A] rounded-xl px-3 py-2.5">
-        <Feather name="search" size={18} color="#A3A3A3" />
+      <View className="flex-row items-center bg-input rounded-xl px-3 py-2.5">
+        <Feather name="search" size={18} className="text-input-placeholder" />
         <TextInput
           placeholder={placeholder}
-          placeholderTextColor="#A3A3A3"
-          className="flex-1 text-white text-base ml-2"
+          placeholderTextColor="var(--color-input-placeholder)"
+          className="flex-1 text-text-primary text-base ml-2"
           value={value}
           onChangeText={onChangeText}
         />

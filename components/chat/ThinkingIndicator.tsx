@@ -40,13 +40,13 @@ export function ThinkingIndicator({ status = 'thinking' }: ThinkingIndicatorProp
   return (
     <View className="px-4 py-2">
       {status !== 'idle' && (
-        <Text className="text-neutral-400 text-xs mb-2">{STATUS_LABELS[status] || status}</Text>
+        <Text className="text-text-muted text-xs mb-2">{STATUS_LABELS[status] || status}</Text>
       )}
       <View className="flex-row items-center h-4">
         {[dot1, dot2, dot3].map((dot, i) => (
           <Animated.View
             key={i}
-            className="w-2 h-2 rounded-full bg-neutral-400 mx-0.5"
+            className="w-2 h-2 rounded-full bg-text-muted mx-0.5"
             style={{ transform: [{ translateY: dot }] }}
           />
         ))}

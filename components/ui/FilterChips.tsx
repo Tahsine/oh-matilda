@@ -23,9 +23,9 @@ export function FilterChips({ filters, active, onSelect }: FilterChipsProps) {
           <TouchableOpacity
             key={f}
             onPress={() => onSelect(f)}
-            className={`h-8 items-center justify-center px-4 rounded-full ${isActive ? 'bg-white' : 'bg-[#2A2A2A]'}`}
+            className={`h-8 items-center justify-center px-4 rounded-full ${isActive ? 'bg-primary' : 'bg-surface'}`}
           >
-            <Text className={`text-sm ${isActive ? 'text-black font-medium' : 'text-neutral-400'}`}>
+            <Text className={`text-sm ${isActive ? 'text-white font-medium' : 'text-text-secondary'}`}>
               {f}
             </Text>
           </TouchableOpacity>

@@ -92,17 +92,17 @@ export default function HistoryScreen() {
   }, [load, search]);
 
   return (
-    <SafeAreaView className="flex-1 bg-[#1E1E1E]">
+    <SafeAreaView className="flex-1 bg-bg">
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-neutral-800">
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
         <TouchableOpacity onPress={() => router.back()} className="p-1">
-          <Feather name="arrow-left" size={24} color="#D4D4D4" />
+          <Feather name="arrow-left" size={24} className="text-icon" />
         </TouchableOpacity>
 
-        <Text className="text-white text-lg font-semibold">Historique</Text>
+        <Text className="text-text-primary text-lg font-semibold">Historique</Text>
 
         <TouchableOpacity onPress={handleNew} className="p-1">
-          <Feather name="plus" size={22} color="#D4D4D4" />
+          <Feather name="plus" size={22} className="text-icon" />
         </TouchableOpacity>
       </View>
 
@@ -133,12 +133,12 @@ export default function HistoryScreen() {
         )}
         renderSectionHeader={({ section: { title } }) => (
           <View className="px-4 pt-4 pb-1">
-            <Text className="text-neutral-400 text-xs font-semibold uppercase tracking-wider">
+            <Text className="text-text-secondary text-xs font-semibold uppercase tracking-wider">
               {title} ({title === 'Favoris' ? favorites.length : normal.length})
             </Text>
           </View>
         )}
-        ItemSeparatorComponent={() => <View className="h-px bg-neutral-800 mx-4" />}
+        ItemSeparatorComponent={() => <View className="h-px bg-border mx-4" />}
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 16 }}
         ListEmptyComponent={
           <EmptyState

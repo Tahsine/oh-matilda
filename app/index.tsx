@@ -69,18 +69,18 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-[#1E1E1E]">
-      <View className="flex-row justify-between items-center px-4 py-3 border-b border-neutral-800">
+    <SafeAreaView className="flex-1 bg-bg">
+      <View className="flex-row justify-between items-center px-4 py-3 border-b border-border">
         <TouchableOpacity onPress={() => router.push('/history')}>
-          <Feather name="menu" size={24} color="#D4D4D4" />
+          <Feather name="menu" size={24} className="text-icon" />
         </TouchableOpacity>
 
         <View className="flex-row items-center gap-4">
           <TouchableOpacity onPress={() => router.push('/files')}>
-            <Feather name="folder" size={22} color="#D4D4D4" />
+            <Feather name="folder" size={22} className="text-icon" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/settings')}>
-            <Feather name="settings" size={22} color="#D4D4D4" />
+            <Feather name="settings" size={22} className="text-icon" />
           </TouchableOpacity>
         </View>
       </View>
@@ -102,21 +102,21 @@ export default function Index() {
               style={{ width: 72, height: 72 }}
               className="mb-6"
             />
-            <Text className="text-white text-xl font-semibold mb-2 font-sans">
+            <Text className="text-text-primary text-xl font-semibold mb-2 font-sans">
               Oh Matilda
             </Text>
-            <Text className="text-neutral-400 text-center text-sm mb-8 max-w-xs font-sans">
+            <Text className="text-text-secondary text-center text-sm mb-8 max-w-xs font-sans">
               Agentic & Offline First — Posez une question ou importez un document
             </Text>
 
             <View className="w-full gap-2">
               {SUGGESTIONS.map((s) => (
-                <TouchableOpacity
+                  <TouchableOpacity
                   key={s}
                   onPress={() => sendMessage(s)}
-                  className="border border-neutral-700 rounded-xl px-4 py-3"
+                  className="border border-border rounded-xl px-4 py-3"
                 >
-                  <Text className="text-neutral-300 text-sm font-sans">{s}</Text>
+                  <Text className="text-text-muted text-sm font-sans">{s}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -135,9 +135,9 @@ export default function Index() {
       {scrolledUp && messages.length > 0 && (
         <TouchableOpacity
           onPress={scrollToBottom}
-          className="absolute bottom-4 right-4 bg-slate-500 rounded-full w-10 h-10 items-center justify-center shadow-lg shadow-black/50"
+          className="absolute bottom-4 right-4 bg-primary rounded-full w-10 h-10 items-center justify-center shadow-lg shadow-black/50"
         >
-          <Feather name="chevron-down" size={22} color="white" />
+          <Feather name="chevron-down" size={22} className="text-white" />
         </TouchableOpacity>
       )}
       </View>

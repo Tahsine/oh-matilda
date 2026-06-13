@@ -167,12 +167,12 @@ export default function FilesScreen() {
   const isLoading = indexingIds.current.size > 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#1E1E1E]">
+    <SafeAreaView className="flex-1 bg-bg">
       <ScreenHeader
         title="Fichiers"
         rightAction={
           <TouchableOpacity onPress={handlePick} className="p-1" disabled={isLoading}>
-            <Feather name="plus" size={24} color={isLoading ? '#666' : '#D4D4D4'} />
+            <Feather name="plus" size={24} className={isLoading ? 'text-text-subtle' : 'text-icon'} />
           </TouchableOpacity>
         }
       />

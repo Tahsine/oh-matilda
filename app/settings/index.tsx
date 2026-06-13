@@ -159,18 +159,18 @@ export default function SettingsScreen() {
   const availableProviders = getAvailableProviders();
 
   return (
-    <SafeAreaView className="flex-1 bg-[#1E1E1E]">
+    <SafeAreaView className="flex-1 bg-bg">
       <ScreenHeader title="Paramètres" />
 
       {/* Provider Picker Modal */}
       <Modal visible={showProviderPicker} transparent animationType="fade">
         <TouchableOpacity
-          className="flex-1 bg-black/60 justify-center px-6"
+          className="flex-1 bg-overlay justify-center px-6"
           activeOpacity={1}
           onPress={() => setShowProviderPicker(false)}
         >
-          <View className="bg-[#2A2A2A] rounded-2xl overflow-hidden">
-            <Text className="text-white text-lg font-semibold text-center py-4 border-b border-neutral-700">
+          <View className="bg-surface rounded-2xl overflow-hidden">
+            <Text className="text-text-primary text-lg font-semibold text-center py-4 border-b border-border">
               Choisir un provider
             </Text>
             {availableProviders.map((p, i) => (
@@ -178,11 +178,11 @@ export default function SettingsScreen() {
                 key={p.name}
                 onPress={() => p.available && handleSelectProvider(p.name)}
                 disabled={!p.available}
-                className={`flex-row items-center justify-between px-5 py-4 ${providerName === p.name ? 'bg-slate-500/20' : ''} ${i < availableProviders.length - 1 ? 'border-b border-neutral-700' : ''}`}
+                className={`flex-row items-center justify-between px-5 py-4 ${providerName === p.name ? 'bg-primary/20' : ''} ${i < availableProviders.length - 1 ? 'border-b border-border' : ''}`}
               >
-                <Text className={`text-base ${p.available ? 'text-white' : 'text-neutral-600'}`}>{p.label}</Text>
+                <Text className={`text-base ${p.available ? 'text-text-primary' : 'text-text-muted'}`}>{p.label}</Text>
                 {providerName === p.name && (
-                  <Feather name="check" size={18} color="#3B82F6" />
+                  <Feather name="check" size={18} className="text-info" />
                 )}
               </TouchableOpacity>
             ))}
@@ -193,12 +193,12 @@ export default function SettingsScreen() {
       {/* API Key Modal */}
       <Modal visible={showApiKeyModal} transparent animationType="fade">
         <TouchableOpacity
-          className="flex-1 bg-black/60 justify-center px-6"
+          className="flex-1 bg-overlay justify-center px-6"
           activeOpacity={1}
           onPress={() => setShowApiKeyModal(false)}
         >
-          <View className="bg-[#2A2A2A] rounded-2xl p-5">
-            <Text className="text-white text-lg font-semibold text-center mb-4">
+          <View className="bg-surface rounded-2xl p-5">
+            <Text className="text-text-primary text-lg font-semibold text-center mb-4">
               Clé API
             </Text>
             <TextInput
@@ -209,26 +209,26 @@ export default function SettingsScreen() {
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
-              className="text-white text-base bg-[#1E1E1E] rounded-xl px-4 py-3 mb-4"
+              className="text-text-primary text-base bg-bg rounded-xl px-4 py-3 mb-4"
             />
             <View className="flex-row gap-3">
               {apiKeyFromSettings ? (
                 <TouchableOpacity
                   onPress={() => { setApiKey(''); setApiKeyFromSettings(false); saveProviderConfig({ apiKey: '' }); setShowApiKeyModal(false); load(); }}
-                  className="py-3 px-4 rounded-xl bg-red-500/20 items-center"
+                  className="py-3 px-4 rounded-xl bg-danger/20 items-center"
                 >
-                  <Text className="text-red-400 text-base">Supprimer</Text>
+                  <Text className="text-danger text-base">Supprimer</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity
                 onPress={() => setShowApiKeyModal(false)}
-                className="flex-1 py-3 rounded-xl bg-neutral-700 items-center"
+                className="flex-1 py-3 rounded-xl bg-surface items-center"
               >
-                <Text className="text-white text-base">Annuler</Text>
+                <Text className="text-text-primary text-base">Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSaveApiKey}
-                className="flex-1 py-3 rounded-xl bg-slate-500 items-center"
+                className="flex-1 py-3 rounded-xl bg-primary items-center"
               >
                 <Text className="text-white text-base font-semibold">Sauvegarder</Text>
               </TouchableOpacity>
@@ -240,12 +240,12 @@ export default function SettingsScreen() {
       {/* Model Picker Modal */}
       <Modal visible={showModelPicker} transparent animationType="fade">
         <TouchableOpacity
-          className="flex-1 bg-black/60 justify-center px-6"
+          className="flex-1 bg-overlay justify-center px-6"
           activeOpacity={1}
           onPress={() => setShowModelPicker(false)}
         >
-          <View className="bg-[#2A2A2A] rounded-2xl overflow-hidden max-h-[60%]">
-            <Text className="text-white text-lg font-semibold text-center py-4 border-b border-neutral-700">
+          <View className="bg-surface rounded-2xl overflow-hidden max-h-[60%]">
+            <Text className="text-text-primary text-lg font-semibold text-center py-4 border-b border-border">
               Choisir un modèle
             </Text>
             <ScrollView>
@@ -253,11 +253,11 @@ export default function SettingsScreen() {
                 <TouchableOpacity
                   key={m}
                   onPress={() => handleSelectModel(m)}
-                  className={`flex-row items-center justify-between px-5 py-4 ${activeModel === m ? 'bg-slate-500/20' : ''} ${i < availableModels.length - 1 ? 'border-b border-neutral-700' : ''}`}
+                  className={`flex-row items-center justify-between px-5 py-4 ${activeModel === m ? 'bg-primary/20' : ''} ${i < availableModels.length - 1 ? 'border-b border-border' : ''}`}
                 >
-                  <Text className="text-white text-base">{m}</Text>
+                  <Text className="text-text-primary text-base">{m}</Text>
                   {activeModel === m && (
-                    <Feather name="check" size={18} color="#3B82F6" />
+                    <Feather name="check" size={18} className="text-info" />
                   )}
                 </TouchableOpacity>
               ))}
@@ -279,7 +279,7 @@ export default function SettingsScreen() {
               label="Modèle actif"
               right={
                 loadingModels ? (
-                  <Text className="text-neutral-400 text-sm">Chargement...</Text>
+                  <Text className="text-text-secondary text-sm">Chargement...</Text>
                 ) : (
                   <ChevronValue value={activeModel} />
                 )
@@ -294,13 +294,12 @@ export default function SettingsScreen() {
                 <TextInput
                   value={serverUrl}
                   onChangeText={(v) => { setServerUrl(v); setSetting('server_url', v); }}
-                  className="text-white text-sm text-right flex-1 ml-4"
-                  style={{ backgroundColor: '#2A2A2A' }}
+                  className="text-text-primary text-sm text-right flex-1 ml-4 bg-surface"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
               ) : (
-                <Text className="text-neutral-400 text-sm text-right flex-1 ml-4">
+                <Text className="text-text-secondary text-sm text-right flex-1 ml-4">
                   {serverUrl || 'N/A (non modifiable)'}
                 </Text>
               )
@@ -311,7 +310,7 @@ export default function SettingsScreen() {
             <SettingsRow
               label="Clé API"
               right={
-                <Text className={`text-sm ${apiKeyFromSettings ? 'text-green-500' : apiKey ? 'text-blue-400' : 'text-orange-400'}`}>
+                <Text className={`text-sm ${apiKeyFromSettings ? 'text-primary' : apiKey ? 'text-info' : 'text-warning'}`}>
                   {apiKeyFromSettings ? 'Configurée' : apiKey ? '.env' : 'Non définie'}
                 </Text>
               }
@@ -368,10 +367,10 @@ export default function SettingsScreen() {
 
         <View className="mx-4 rounded-xl overflow-hidden">
           <TouchableOpacity onPress={cycleTheme} activeOpacity={0.7}>
-            <View className="flex-row items-center justify-between px-4 py-3.5 bg-[#2A2A2A]">
+            <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
               <View className="flex-row items-center gap-3">
-                <Feather name={THEME_ICONS[theme]} size={18} color="#D4D4D4" />
-                <Text className="text-white text-base">Thème</Text>
+                <Feather name={THEME_ICONS[theme]} size={18} className="text-icon" />
+                <Text className="text-text-primary text-base">Thème</Text>
               </View>
               <ChevronValue value={THEME_LABELS[theme]} />
             </View>
@@ -389,7 +388,7 @@ export default function SettingsScreen() {
           <SettingsRow
             label="Statut"
             right={
-              <Text className={embeddingReady ? 'text-green-500 text-base' : 'text-orange-400 text-base'}>
+              <Text className={embeddingReady ? 'text-primary text-base' : 'text-warning text-base'}>
                 {embeddingReady ? 'Prêt' : 'Non téléchargé'}
               </Text>
             }
@@ -407,21 +406,21 @@ export default function SettingsScreen() {
         <SectionHeader title="À Propos" />
 
         <View className="mx-4 rounded-xl overflow-hidden mb-8">
-          <SettingsRow label="Version" right={<Text className="text-neutral-400 text-base">0.1.0</Text>} />
+          <SettingsRow label="Version" right={<Text className="text-text-secondary text-base">0.1.0</Text>} />
           <Divider />
           <TouchableOpacity onPress={() => Linking.openURL('https://github.com/Tahsine/oh-matilda')} activeOpacity={0.7}>
             <SettingsRow
               label="GitHub"
               right={
                 <View className="flex-row items-center gap-2">
-                  <Feather name="github" size={18} color="#D4D4D4" />
-                  <Feather name="external-link" size={16} color="#D4D4D4" />
+                  <Feather name="github" size={18} className="text-icon" />
+                  <Feather name="external-link" size={16} className="text-icon" />
                 </View>
               }
             />
           </TouchableOpacity>
           <Divider />
-          <SettingsRow label="Licence" right={<Text className="text-neutral-400 text-base">MIT</Text>} />
+          <SettingsRow label="Licence" right={<Text className="text-text-secondary text-base">MIT</Text>} />
         </View>
       </ScrollView>
     </SafeAreaView>

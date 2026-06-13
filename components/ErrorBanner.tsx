@@ -28,17 +28,17 @@ export function ErrorBanner({ error }: ErrorBannerProps) {
       style={{ transform: [{ translateY: slide }] }}
       className="absolute top-0 left-0 right-0 z-50 mx-4 mt-2"
     >
-      <View className="bg-red-500/90 rounded-xl px-4 py-3 flex-row items-center gap-3">
-        <Feather name="alert-circle" size={18} color="white" />
+      <View className="bg-danger/90 rounded-xl px-4 py-3 flex-row items-center gap-3">
+        <Feather name="alert-circle" size={18} className="text-white" />
         <Text className="text-white text-sm flex-1 font-sans">{error.message}</Text>
         <View className="flex-row items-center gap-2">
           {error.retry && (
-            <TouchableOpacity onPress={error.retry} className="bg-white/20 rounded-lg px-3 py-1">
+            <TouchableOpacity onPress={error.retry} className="bg-surface rounded-lg px-3 py-1">
               <Text className="text-white text-xs font-sans">Réessayer</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleDismiss} className="p-1">
-            <Feather name="x" size={16} color="white" />
+            <Feather name="x" size={16} className="text-white" />
           </TouchableOpacity>
         </View>
       </View>
