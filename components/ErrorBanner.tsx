@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Animated, Text, TouchableOpacity, View } from 'react-native';
 import { dismissError, type AppError } from '../lib/error-handler';
 
@@ -8,6 +9,7 @@ type ErrorBannerProps = {
 };
 
 export function ErrorBanner({ error }: ErrorBannerProps) {
+  const { t } = useTranslation();
   const slide = useRef(new Animated.Value(-100)).current;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -34,7 +36,7 @@ export function ErrorBanner({ error }: ErrorBannerProps) {
         <View className="flex-row items-center gap-2">
           {error.retry && (
             <TouchableOpacity onPress={error.retry} className="bg-surface rounded-lg px-3 py-1">
-              <Text className="text-white text-xs font-sans">Réessayer</Text>
+              <Text className="text-white text-xs font-sans">{t('common.retry')}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={handleDismiss} className="p-1">

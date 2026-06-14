@@ -2,7 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Alert, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatBubble } from '../components/chat/ChatBubble';
 import { ChatInput } from '../components/chat/ChatInput';
@@ -12,22 +13,23 @@ import { showToast } from '../components/ui/Toast';
 import { onErrors, type AppError } from '../lib/error-handler';
 import { useStreamChat } from '../lib/chat';
 import { getMessages } from '../lib/db';
+import { getSetting, setSetting } from '../lib/settings';
 import type { Message } from '../lib/types';
 import { useTokens } from '../lib/theme-tokens';
 
-const SUGGESTIONS = [
-  'Qu\'est-ce qui est traité dans mes documents ?',
-  'Résume le document principal',
-  'Quels sont les points importants ?',
-];
+const SUGGESTION_KEYS = ['chat.suggestions.0', 'chat.suggestions.1', 'chat.suggestions.2'];
 
 export default function Index() {
+  const { t: tr } = useTranslation();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [errors, setErrors] = useState<AppError[]>([]);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [editingMessage, setEditingMessage] = useState<{ id: string; text: string } | null>(null);
+  const [showTavilyKeyModal, setShowTavilyKeyModal] = useState(false);
+  const [tavilyKeyInput, setTavilyKeyInput] = useState('');
   const t = useTokens();
+  const suggestions = SUGGESTION_KEYS.map(k => tr(k));
 
   useEffect(() => {
     const unsub = onErrors(setErrors);
@@ -85,13 +87,32 @@ export default function Index() {
 
   const handleCopy = useCallback(async (content: string) => {
     await Clipboard.setStringAsync(content);
-    showToast('Copié', 'Texte copié dans le presse-papier');
-  }, []);
+    showToast(tr('toast.copied'), tr('toast.copiedDesc'));
+  }, [tr]);
 
   const handleEdit = useCallback((msgId: string, newText: string) => {
     setEditingMessage(null);
     editAndResend(msgId, newText);
   }, [editAndResend]);
+
+  const handleToggleWebSearch = useCallback(() => {
+    const key = getSetting('tavily_api_key');
+    if (!key) {
+      setTavilyKeyInput('');
+      setShowTavilyKeyModal(true);
+      return;
+    }
+    setWebSearchEnabled(v => !v);
+  }, []);
+
+  const handleSaveTavilyKey = useCallback(() => {
+    const trimmed = tavilyKeyInput.trim();
+    if (!trimmed) return;
+    setSetting('tavily_api_key', trimmed);
+    setShowTavilyKeyModal(false);
+    setWebSearchEnabled(true);
+    showToast(tr('toast.tavilySaved'), tr('toast.tavilyWebSearchActive'));
+  }, [tavilyKeyInput, tr]);
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -128,14 +149,14 @@ export default function Index() {
               className="mb-6"
             />
             <Text className="text-text-primary text-xl font-semibold mb-2 font-sans">
-              Oh Matilda
+              {tr('chat.emptyTitle')}
             </Text>
             <Text className="text-text-secondary text-center text-sm mb-8 max-w-xs font-sans">
-              Agentic & Offline First — Posez une question ou importez un document
+              {tr('chat.emptySubtitle')}
             </Text>
 
             <View className="w-full gap-2">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                   <TouchableOpacity
                   key={s}
                   onPress={() => sendMessage(s)}
@@ -167,7 +188,7 @@ export default function Index() {
           );
         })}
 
-        {showThinking && <ThinkingIndicator text={compacting ? 'Compaction en cours...' : regenerating ? 'Régénération...' : undefined} />}
+        {showThinking && <ThinkingIndicator text={compacting ? tr('chat.compacting') : regenerating ? tr('chat.regenerating') : undefined} />}
       </ScrollView>
 
       {scrolledUp && messages.length > 0 && (
@@ -180,12 +201,53 @@ export default function Index() {
       )}
       </View>
 
+      <Modal visible={showTavilyKeyModal} transparent animationType="fade">
+        <TouchableOpacity
+          className="flex-1 bg-overlay justify-center px-6"
+          activeOpacity={1}
+          onPress={() => setShowTavilyKeyModal(false)}
+        >
+          <View className="bg-surface rounded-2xl p-5">
+            <Text className="text-text-primary text-lg font-semibold text-center mb-1">
+              {tr('chat.tavilyModal.title')}
+            </Text>
+            <Text className="text-text-secondary text-sm text-center mb-4">
+              {tr('chat.tavilyModal.description')}
+            </Text>
+            <TextInput
+              value={tavilyKeyInput}
+              onChangeText={setTavilyKeyInput}
+              placeholder={tr('chat.tavilyModal.placeholder')}
+              placeholderTextColor="#525252"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              className="text-text-primary text-base bg-bg rounded-xl px-4 py-3 mb-4"
+            />
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                onPress={() => setShowTavilyKeyModal(false)}
+                className="flex-1 py-3 rounded-xl bg-surface items-center"
+              >
+                <Text className="text-text-primary text-base">{tr('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSaveTavilyKey}
+                className="flex-1 py-3 rounded-xl bg-primary items-center"
+              >
+                <Text className="text-white text-base font-semibold">{tr('common.save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <ChatInput
         onSend={sendMessage}
         streaming={streaming}
         onStop={cancelStreaming}
         webSearch={webSearchEnabled}
-        onToggleWebSearch={() => setWebSearchEnabled(v => !v)}
+        onToggleWebSearch={handleToggleWebSearch}
         editTarget={editingMessage}
         onEdit={handleEdit}
         onCancelEdit={() => setEditingMessage(null)}

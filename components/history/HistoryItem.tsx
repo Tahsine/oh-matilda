@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -20,6 +21,7 @@ type HistoryItemProps = {
 };
 
 export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRename }: HistoryItemProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.title);
   const translateX = useSharedValue(0);
@@ -131,7 +133,7 @@ export function HistoryItem({ item, onPress, onDelete, onToggleFavorite, onRenam
                       <Feather name="star" size={14} color="#F97316" />
                     )}
                     <Text className="text-text-primary text-base font-medium mb-1 flex-1" numberOfLines={1}>
-                      {item.title || 'Nouvelle conversation'}
+                      {item.title || t('history.newConversation')}
                     </Text>
                   </View>
                 )}

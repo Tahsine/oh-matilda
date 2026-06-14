@@ -1,4 +1,5 @@
 import { getSetting } from '../settings';
+import i18n from '../i18n';
 
 let llamaModule: typeof import('@react-native-ai/llama') | null = null;
 
@@ -38,7 +39,7 @@ export async function prepareLanguageModel(path: string, projectorPath?: string)
 export function createLocalProvider(projectorPath?: string) {
   if (!llamaModule) {
     throw new Error(
-      '@react-native-ai/llama non disponible. Utilise un dev build avec le module natif.',
+      i18n.t('errors.nativeModuleNotAvailable'),
     );
   }
 

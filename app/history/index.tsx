@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, RefreshControl, SectionList, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HistoryItem } from '../../components/history/HistoryItem';
@@ -22,6 +23,7 @@ type Section = {
 };
 
 export default function HistoryScreen() {
+  const { t: tr } = useTranslation();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [search, setSearch] = useState('');
@@ -52,19 +54,19 @@ export default function HistoryScreen() {
   const normal = conversations.filter((c) => !c.favorite);
 
   if (favorites.length > 0) {
-    sections.push({ title: 'Favoris', data: favorites });
+    sections.push({ title: tr('history.favorites'), data: favorites });
   }
   if (normal.length > 0) {
-    sections.push({ title: 'Conversations', data: normal });
+    sections.push({ title: tr('history.conversations'), data: normal });
   }
 
   const handleDelete = (id: string) => {
     Alert.alert(
-      'Supprimer la conversation',
-      'Cette action est irréversible.',
+      tr('history.deleteTitle'),
+      tr('history.deleteMessage'),
       [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: () => { deleteConversation(id); load(search); } },
+        { text: tr('common.cancel'), style: 'cancel' },
+        { text: tr('common.delete'), style: 'destructive', onPress: () => { deleteConversation(id); load(search); } },
       ],
     );
   };
@@ -101,7 +103,7 @@ export default function HistoryScreen() {
           <Feather name="arrow-left" size={24} color={t.icon} />
         </TouchableOpacity>
 
-        <Text className="text-text-primary text-lg font-semibold">Historique</Text>
+        <Text className="text-text-primary text-lg font-semibold">{tr('history.title')}</Text>
 
         <TouchableOpacity onPress={handleNew} className="p-1">
           <Feather name="plus" size={22} color={t.icon} />
@@ -109,7 +111,7 @@ export default function HistoryScreen() {
       </View>
 
       <SearchBar
-        placeholder="Rechercher une conversation..."
+        placeholder={tr('history.searchPlaceholder')}
         value={search}
         onChangeText={setSearch}
       />
@@ -136,7 +138,7 @@ export default function HistoryScreen() {
         renderSectionHeader={({ section: { title } }) => (
           <View className="px-4 pt-4 pb-1">
             <Text className="text-text-secondary text-xs font-semibold uppercase tracking-wider">
-              {title} ({title === 'Favoris' ? favorites.length : normal.length})
+              {title} ({title === tr('history.favorites') ? favorites.length : normal.length})
             </Text>
           </View>
         )}
@@ -145,7 +147,7 @@ export default function HistoryScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="message-square"
-            label={search ? 'Aucun résultat' : 'Aucune conversation'}
+            label={search ? tr('history.emptyResults') : tr('history.emptyConversations')}
           />
         }
         stickySectionHeadersEnabled={false}

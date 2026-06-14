@@ -10,6 +10,7 @@ import { Toast } from "../components/ui/Toast";
 import { isModelReady } from "../lib/models";
 import { prepareEmbedding } from "../lib/provider";
 import { getSetting } from "../lib/settings";
+import { detectLanguage } from "../lib/i18n";
 import OnboardingScreen from "./onboarding";
 import '../polyfills';
 import './global.css';
@@ -107,6 +108,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!fontsLoaded) return;
+    detectLanguage();
     const saved = getSetting('theme');
     if (saved !== 'system') colorScheme.set(saved as 'light' | 'dark');
     check();

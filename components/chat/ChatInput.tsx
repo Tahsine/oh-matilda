@@ -1,6 +1,7 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Image, Keyboard, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useTokens } from '../../lib/theme-tokens';
@@ -17,6 +18,7 @@ type ChatInputProps = {
 };
 
 export function ChatInput({ onSend, streaming, onStop, webSearch = false, onToggleWebSearch, editTarget, onEdit, onCancelEdit }: ChatInputProps) {
+  const { t: tr } = useTranslation();
   const [value, setValue] = useState(editTarget?.text ?? '');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const t = useTokens();
@@ -71,7 +73,7 @@ export function ChatInput({ onSend, streaming, onStop, webSearch = false, onTogg
         {isEditing && (
           <View className="flex-row items-center gap-2 mb-2 px-2">
             <Feather name="edit-2" size={14} color={t.warning} />
-            <Text className="text-warning text-xs flex-1 font-sans">Modification du message...</Text>
+            <Text className="text-warning text-xs flex-1 font-sans">{tr('chat.input.editing')}</Text>
             <TouchableOpacity onPress={() => { setValue(''); onCancelEdit?.(); }} className="p-1">
               <Feather name="x" size={14} color={t.icon} />
             </TouchableOpacity>
@@ -81,7 +83,7 @@ export function ChatInput({ onSend, streaming, onStop, webSearch = false, onTogg
         <TextInput
           value={value}
           onChangeText={setValue}
-          placeholder="Message Oh Matilda..."
+          placeholder={tr('chat.input.placeholder')}
           placeholderTextColor={t.inputPlaceholder}
           multiline
           editable={!streaming}

@@ -1,6 +1,7 @@
 import { getBgeM3Path, getGemma4Path, getMmprojPath } from './models';
 import { prepareEmbeddingModel, prepareLanguageModel, createLocalProvider } from './providers/llama-provider';
 import { createModel, getActiveProvider, getProviderInfo as getRegistryInfo } from './providers/registry';
+import i18n from './i18n';
 
 let cachedEmbeddingModel: Awaited<ReturnType<typeof prepareEmbeddingModel>> | null = null;
 let cachedLocalModel: ReturnType<ReturnType<typeof createLocalProvider>['languageModel']> | null = null;
@@ -60,7 +61,7 @@ export async function reloadLocalLLM() {
 export function getModel(modelId?: string) {
   const config = getActiveProvider();
   if (config.provider === 'llama-local') {
-    if (!cachedLocalModel) throw new Error('Modèle local non prêt. Veuillez patienter...');
+    if (!cachedLocalModel)     throw new Error(i18n.t('errors.localModelNotReady'));
     return cachedLocalModel;
   }
   return createModel(modelId);

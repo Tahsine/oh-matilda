@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { downloadModel } from '@react-native-ai/llama';
+import i18n from './i18n';
 
 export const BGE_M3_REPO = 'bbvch-ai/bge-m3-GGUF/bge-m3-q4_k_m.gguf';
 
@@ -67,7 +68,7 @@ export async function startDownload(): Promise<void> {
     state = { status: 'done', progress: 1, path };
     emit();
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Erreur de téléchargement';
+    const msg = e instanceof Error ? e.message : i18n.t('errors.downloadError');
     console.error('[models] BGE-M3 download error:', msg);
     state = { status: 'error', progress: 0, path: null, error: msg };
     emit();
@@ -185,7 +186,7 @@ async function downloadWithResume(
 
   const dlResumable = FileSystem.createDownloadResumable(url, destPath, {}, callback);
   const result = await dlResumable.downloadAsync();
-  if (!result) throw new Error('Téléchargement annulé');
+  if (!result) throw new Error(i18n.t('errors.downloadCancelled'));
   console.log('[models] downloadWithResume done:', result.uri);
   return result.uri;
 }
@@ -236,7 +237,7 @@ export async function startGemma4Download(): Promise<void> {
     emitGemma4();
   } catch (e: unknown) {
     const msg =
-      e instanceof Error ? e.message : 'Erreur de téléchargement Gemma 4';
+      e instanceof Error ? e.message : i18n.t('errors.gemma4DownloadError');
     console.error('[models] Gemma 4 download error:', msg);
     gemma4State = { status: 'error', progress: 0, path: null, error: msg };
     emitGemma4();

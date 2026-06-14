@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../lib/i18n';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { Feather } from '@expo/vector-icons';
@@ -34,7 +36,10 @@ function showInfoToast(role: string, durationMs?: number, tokenCount?: number) {
   const parts: string[] = [];
   if (tokenCount !== undefined) parts.push(`Tokens: ${tokenCount}`);
   if (durationMs !== undefined) parts.push(`Temps: ${durationMs}ms`);
-  showToast(role === 'assistant' ? 'Réponse' : 'Message', parts.join(' | ') || 'Aucune information');
+  showToast(
+    role === 'assistant' ? i18n.t('chat.bubble.infoTitleAssistant') : i18n.t('chat.bubble.infoTitleUser'),
+    parts.join(' | ') || i18n.t('chat.bubble.noInfo'),
+  );
 }
 
 export function ChatBubble({ role, content, image, condensed, durationMs, tokenCount, onEdit, onCopy, onRegenerate }: ChatBubbleProps) {

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Animated, Text, View } from 'react-native';
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_KEYS: Record<string, string> = {
   idle: '',
-  thinking: 'L\'agent réfléchit',
-  searching: 'Recherche dans les documents',
-  generating: 'Génération de la réponse',
+  thinking: 'chat.thinking.thinking',
+  searching: 'chat.thinking.searching',
+  generating: 'chat.thinking.generating',
 };
 
 type ThinkingIndicatorProps = {
@@ -14,6 +15,7 @@ type ThinkingIndicatorProps = {
 };
 
 export function ThinkingIndicator({ status = 'thinking', text }: ThinkingIndicatorProps) {
+  const { t } = useTranslation();
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -38,7 +40,7 @@ export function ThinkingIndicator({ status = 'thinking', text }: ThinkingIndicat
     return () => { a1.stop(); a2.stop(); a3.stop(); };
   }, []);
 
-  const label = text ?? STATUS_LABELS[status] ?? status;
+  const label = text ?? (STATUS_KEYS[status] ? t(STATUS_KEYS[status]) : status);
 
   return (
     <View className="px-4 py-2">

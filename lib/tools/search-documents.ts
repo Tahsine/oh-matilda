@@ -4,15 +4,16 @@ import { generateEmbedding } from '../embeddings';
 import { searchSimilar } from '../vector-store';
 import { pushError } from '../error-handler';
 import { logger } from '../logger';
+import i18n from '../i18n';
 
 export const searchDocuments = tool({
-  description: `Recherche sémantique dans les documents importés par l'utilisateur (PDF, Word).
-Utilise cette outil quand l'utilisateur pose une question sur le contenu de ses documents.
-Tu peux l'appeler plusieurs fois avec des requêtes différentes si la première tentative ne donne pas de résultats pertinents.
-Les résultats incluent un score de pertinence (0-1). En dessous de 0.5, les résultats sont probablement hors-sujet.`,
+  description: `Semantic search in the user's imported documents (PDF, Word).
+Use this tool when the user asks a question about their document content.
+You can call it multiple times with different queries if the first attempt doesn't return relevant results.
+Results include a relevance score (0-1). Below 0.5, results are likely off-topic.`,
   inputSchema: z.object({
-    query: z.string().describe('La requête de recherche sémantique. Sois précis pour de meilleurs résultats.'),
-    maxResults: z.number().default(5).describe('Nombre maximum de résultats'),
+    query: z.string().describe('The semantic search query. Be specific for better results.'),
+    maxResults: z.number().default(5).describe('Maximum number of results'),
   }),
   execute: async ({ query, maxResults }) => {
     console.log('[search] execute:', { query, maxResults });
@@ -24,15 +25,15 @@ Les résultats incluent un score de pertinence (0-1). En dessous de 0.5, les ré
       console.log('[search] embedding OK:', { dims: embedding.length });
       logger.search('embedding OK', { dims: embedding.length });
     } catch (e) {
-      const reason = e instanceof Error ? e.message : 'Erreur inconnue';
+      const reason = e instanceof Error ? e.message : 'Unknown error';
       logger.search('embedding FAILED', reason);
-      pushError({ type: 'search', message: `Recherche impossible : ${reason}` });
+      pushError({ type: 'search', message: i18n.t('errors.searchFailed', { reason }) });
       return {
         results: [],
         total: 0,
         query,
         searchType: 'failed',
-        reason: `Impossible de générer l'embedding : ${reason}`,
+        reason: `Failed to generate embedding: ${reason}`,
       };
     }
 
@@ -46,7 +47,7 @@ Les résultats incluent un score de pertinence (0-1). En dessous de 0.5, les ré
         total: 0,
         query,
         searchType: 'vector',
-        reason: 'Aucun résultat pertinent trouvé dans les documents indexés. Essaie une requête plus précise ou vérifie que les documents importés contiennent cette information.',
+        reason: 'No relevant results found in indexed documents. Try a more specific query or check that your imported documents contain this information.',
       };
     }
 

@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { type TextPart, type ImagePart, type ModelMessage } from 'ai';
 type ContentPart = TextPart | ImagePart;
 import { useCallback, useEffect, useRef, useState } from 'react';
+import i18n from './i18n';
 import { createAgent } from './agents/matilda-agent';
 import {
   addMessage,
@@ -43,14 +44,14 @@ function estimateTokens(text: string): number {
 
 async function toModelMessages(msgs: Message[], webSearch?: boolean): Promise<ModelMessage[]> {
   const result: ModelMessage[] = [];
+  const wsPrefix = webSearch ? `${i18n.t('chat.webSearchPrefix')} ` : '';
   for (const msg of msgs) {
-    const prefix = msg.role === 'user' && webSearch ? '[Recherche Web] ' : '';
     if (!msg.image) {
-      result.push({ role: msg.role, content: prefix + msg.content });
+      result.push({ role: msg.role, content: wsPrefix + msg.content });
     } else {
       const dataUrl = await uriToDataUrl(msg.image);
       const parts: ContentPart[] = [
-        { type: 'text' as const, text: prefix + msg.content },
+        { type: 'text' as const, text: wsPrefix + msg.content },
         { type: 'image' as const, image: dataUrl },
       ];
       result.push({ role: msg.role as 'user' | 'assistant', content: parts } as ModelMessage);
@@ -75,12 +76,12 @@ async function compactConversation(convId: string, messages: Message[]): Promise
   const cutoffIndex = assistantIndices[assistantIndices.length - 6];
   const toSummarize = messages.slice(0, cutoffIndex);
 
-  const summaryPrompt = `Tu es un assistant spécialisé dans le résumé de conversations. Résume la conversation suivante entre l'utilisateur et un assistant IA en 2-3 phrases concises. Garde les points clés, les décisions et les informations importantes. Ignore les salutations et le superflu.
+  const summaryPrompt = `You are an assistant specialized in summarizing conversations. Summarize the following conversation between a user and an AI assistant in 2-3 concise sentences. Keep key points, decisions, and important information. Ignore greetings and superfluous content.
 
-Conversation :
-${toSummarize.map((m) => `**${m.role === 'user' ? 'Utilisateur' : 'Assistant'}** : ${m.content}`).join('\n\n')}
+Conversation:
+${toSummarize.map((m) => `**${m.role === 'user' ? 'User' : 'Assistant'}**: ${m.content}`).join('\n\n')}
 
-Résumé :`;
+Summary:`;
 
   try {
     const agent = createAgent();
@@ -153,9 +154,9 @@ export function useStreamChat({ conversationId, onConversationChange, webSearchE
         console.log('[chat] generation stopped by user');
       } else {
         console.error('[chat] stream error:', err);
-        const msg = err instanceof Error ? err.message : 'Une erreur est survenue';
+        const msg = err instanceof Error ? err.message : i18n.t('errors.generic');
         pushError({ type: 'agent', message: msg });
-        const errMsg = `**Erreur** : ${msg}`;
+        const errMsg = `${i18n.t('errors.agentError', { msg })}`;
         updateMessageContent(convId, assistantMsgId, errMsg);
         setMessages(prev => {
           const next = [...prev];
@@ -225,13 +226,13 @@ export function useStreamChat({ conversationId, onConversationChange, webSearchE
     try {
       const summary = getConversationSummary(convId);
       const agentMsgs: ModelMessage[] = summary
-        ? [{ role: 'system', content: `Résumé de la conversation précédente : ${summary}` }]
+        ? [{ role: 'system', content: `Summary of previous conversation: ${summary}` }]
         : [];
 
       const historyMsgs = messages.length > 0 ? await toModelMessages(messages, webSearchRef.current) : [];
       agentMsgs.push(...historyMsgs);
 
-      const userPrefix = webSearchRef.current ? '[Recherche Web] ' : '';
+      const userPrefix = webSearchRef.current ? `${i18n.t('chat.webSearchPrefix')} ` : '';
       let userContent: ModelMessage['content'];
       if (image) {
         const dataUrl = await uriToDataUrl(image);
@@ -288,9 +289,9 @@ export function useStreamChat({ conversationId, onConversationChange, webSearchE
         console.log('[chat] generation stopped by user');
       } else {
         console.error('[chat] stream error:', err);
-        const msg = err instanceof Error ? err.message : 'Une erreur est survenue';
+        const msg = err instanceof Error ? err.message : i18n.t('errors.generic');
         pushError({ type: 'agent', message: msg });
-        const errMsg = `**Erreur** : ${msg}`;
+        const errMsg = `${i18n.t('errors.agentError', { msg })}`;
         updateMessageContent(convId, assistantMsg.id, errMsg);
         setMessages(prev => {
           const next = [...prev];

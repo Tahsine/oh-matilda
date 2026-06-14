@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import React, { useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -18,11 +19,11 @@ const STATUS_COLOR: Record<FileItem['status'], string> = {
   error: '#EF4444',
 };
 
-const STATUS_LABEL: Record<FileItem['status'], string> = {
-  indexed: 'Indexé',
-  indexing: 'Indexation...',
-  pending: 'En cours',
-  error: 'Erreur',
+const STATUS_KEYS: Record<FileItem['status'], string> = {
+  indexed: 'files.statusIndexed',
+  indexing: 'files.statusIndexing',
+  pending: 'files.statusPending',
+  error: 'files.statusError',
 };
 
 const FILE_ICON: Record<FileItem['type'], keyof typeof Feather.glyphMap> = {
@@ -37,6 +38,7 @@ type FileListItemProps = {
 };
 
 export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
+  const { t } = useTranslation();
   const translateX = useSharedValue(0);
   const deleteWidth = useSharedValue(0);
 
@@ -104,7 +106,7 @@ export function FileListItem({ item, onPress, onDelete }: FileListItemProps) {
             {item.status === 'indexing' ? (
               <ActivityIndicator size="small" color="#3B82F6" />
             ) : (
-              <Badge label={STATUS_LABEL[item.status]} color={STATUS_COLOR[item.status]} />
+              <Badge label={t(STATUS_KEYS[item.status])} color={STATUS_COLOR[item.status]} />
             )}
           </TouchableOpacity>
         </Animated.View>

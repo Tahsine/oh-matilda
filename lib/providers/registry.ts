@@ -1,4 +1,5 @@
 import type { LanguageModel } from 'ai';
+import i18n from '../i18n';
 import { getSetting, setSetting } from '../settings';
 import type { ProviderConfig, ProviderName, ProviderAdapter } from './types';
 import { ollamaCloudAdapter } from './ollama-cloud';
@@ -76,8 +77,15 @@ export function getProviderInfo() {
   };
 }
 
+const LABEL_KEYS: Record<string, string> = {
+  'ollama-cloud': 'onboarding.provider.ollamaCloud',
+  'ollama-hosted': 'onboarding.provider.selfHosted',
+  'llama-local': 'onboarding.provider.onDevice',
+};
+
 export function providerLabel(name: ProviderName): string {
-  return adapters[name]?.label || 'Ollama Cloud';
+  const key = LABEL_KEYS[name];
+  return key ? i18n.t(key) : (adapters[name]?.label || 'Ollama Cloud');
 }
 
 export function getAdapter(name: string): ProviderAdapter {
@@ -86,8 +94,8 @@ export function getAdapter(name: string): ProviderAdapter {
 
 export function getAvailableProviders(): { name: string; label: string; available: boolean }[] {
   return [
-    { name: 'ollama-cloud', label: 'Ollama Cloud', available: true },
-    { name: 'ollama-hosted', label: 'Self-hosted', available: true },
-    { name: 'llama-local', label: 'llama.cpp (local)', available: true },
+    { name: 'ollama-cloud', label: i18n.t('onboarding.provider.ollamaCloud'), available: true },
+    { name: 'ollama-hosted', label: i18n.t('onboarding.provider.selfHosted'), available: true },
+    { name: 'llama-local', label: i18n.t('onboarding.provider.onDevice'), available: true },
   ];
 }

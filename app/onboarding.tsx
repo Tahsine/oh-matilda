@@ -1,8 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Alert,
   Image,
+  Linking,
   Modal,
   ScrollView,
   Text,
@@ -35,31 +37,33 @@ import type { ProviderName } from '../lib/providers/types';
 import { setSetting } from '../lib/settings';
 import { useTokens } from '../lib/theme-tokens';
 
-const PROVIDERS: {
+function getProviders(t: (key: string) => string): {
   name: ProviderName;
   label: string;
   icon: keyof typeof Feather.glyphMap;
   desc: string;
-}[] = [
-  {
-    name: 'ollama-cloud',
-    label: 'Ollama Cloud',
-    icon: 'cloud',
-    desc: 'Hébergé par Ollama. Clé API requise.',
-  },
-  {
-    name: 'ollama-hosted',
-    label: 'Auto-hébergé',
-    icon: 'server',
-    desc: 'Votre propre serveur Ollama.',
-  },
-  {
-    name: 'llama-local',
-    label: 'Sur l\'appareil',
-    icon: 'smartphone',
-    desc: 'Gemma 4 E2B en local. ~3.2 GB à télécharger.',
-  },
-];
+}[] {
+  return [
+    {
+      name: 'ollama-cloud',
+      label: t('onboarding.provider.ollamaCloud'),
+      icon: 'cloud',
+      desc: t('onboarding.provider.ollamaCloudDesc'),
+    },
+    {
+      name: 'ollama-hosted',
+      label: t('onboarding.provider.selfHosted'),
+      icon: 'server',
+      desc: t('onboarding.provider.selfHostedDesc'),
+    },
+    {
+      name: 'llama-local',
+      label: t('onboarding.provider.onDevice'),
+      icon: 'smartphone',
+      desc: t('onboarding.provider.onDeviceDesc'),
+    },
+  ];
+}
 
 type Step = 'provider' | 'config' | 'download' | 'ready';
 
@@ -68,6 +72,8 @@ export default function OnboardingScreen({
 }: {
   onComplete: () => void;
 }) {
+  const { t: tr } = useTranslation();
+  const PROVIDERS = useMemo(() => getProviders(tr), [tr]);
   const t = useTokens();
 
   const [step, setStep] = useState<Step>('provider');
@@ -159,7 +165,7 @@ export default function OnboardingScreen({
       setAvailableModels(models);
       setShowModelPicker(true);
     } catch {
-      Alert.alert('Erreur', 'Impossible de charger les modèles.');
+      Alert.alert(tr('common.error'), tr('errors.cannotLoadModels'));
     } finally {
       setLoadingModels(false);
     }
@@ -207,7 +213,7 @@ export default function OnboardingScreen({
         >
           <View className="bg-surface rounded-2xl overflow-hidden max-h-[60%]">
             <Text className="text-text-primary text-lg font-semibold text-center py-4 border-b border-border">
-              Choisir un modèle
+              {tr('settings.modelPicker.title')}
             </Text>
             <ScrollView>
               {availableModels.map((m, i) => (
@@ -236,10 +242,10 @@ export default function OnboardingScreen({
             className="mb-6"
           />
           <Text className="text-2xl font-bold text-text-primary mb-2">
-            Bienvenue sur Matilda
+            {tr('onboarding.welcome.title')}
           </Text>
           <Text className="text-base text-text-secondary text-center mb-8 leading-6">
-            Choisissez votre mode de fonctionnement
+            {tr('onboarding.welcome.subtitle')}
           </Text>
 
           <View className="w-full gap-3 mb-8">
@@ -289,7 +295,7 @@ export default function OnboardingScreen({
             className="bg-primary py-3.5 px-10 rounded-xl w-full items-center"
           >
             <Text className="text-white font-semibold text-base">
-              Continuer
+              {tr('common.continue')}
             </Text>
           </TouchableOpacity>
         </>
@@ -302,29 +308,30 @@ export default function OnboardingScreen({
             <Feather name={providerIcon} size={28} color={t.primary} />
           </View>
           <Text className="text-xl font-bold text-text-primary mb-6">
-            Configuration{' '}
-            {PROVIDERS.find((p) => p.name === selectedProvider)?.label}
+            {tr('onboarding.config.title', { provider: PROVIDERS.find((p) => p.name === selectedProvider)?.label })}
           </Text>
 
           {selectedProvider === 'ollama-cloud' && (
             <View className="w-full mb-6">
               <Text className="text-sm text-text-secondary mb-2">
-                Clé API Ollama
+                {tr('onboarding.config.apiKeyLabel')}
               </Text>
               <TextInput
                 value={apiKey}
                 onChangeText={setApiKey}
-                placeholder="sk-..."
+                placeholder={tr('onboarding.config.apiKeyPlaceholder')}
                 placeholderTextColor="#525252"
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
                 className="text-text-primary text-base bg-surface rounded-xl px-4 py-3.5 mb-3"
               />
-              <Text className="text-sm text-text-muted mb-4">
-                Obtenez votre clé sur{' '}
-                <Text className="text-link">ollama.com/settings/keys</Text>
-              </Text>
+              <TouchableOpacity
+                onPress={() => Linking.openURL('https://ollama.com/settings/keys')}
+                className="mb-4"
+              >
+                <Text className="text-primary text-sm font-semibold">{tr('onboarding.config.apiKeyHint')}</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleFetchModels}
                 disabled={loadingModels}
@@ -332,13 +339,13 @@ export default function OnboardingScreen({
               >
                 <Text className="text-text-primary font-semibold">
                   {loadingModels
-                    ? 'Chargement...'
-                    : `Voir les modèles disponibles`}
+                    ? tr('common.loading')
+                    : tr('common.seeModels')}
                 </Text>
               </TouchableOpacity>
               {activeModel ? (
                 <Text className="text-sm text-text-muted text-center mt-2">
-                  Modèle sélectionné : {activeModel}
+                  {tr('common.modelSelected', { model: activeModel })}
                 </Text>
               ) : null}
             </View>
@@ -347,12 +354,12 @@ export default function OnboardingScreen({
           {selectedProvider === 'ollama-hosted' && (
             <View className="w-full mb-6">
               <Text className="text-sm text-text-secondary mb-2">
-                URL du serveur Ollama
+                {tr('onboarding.config.serverUrlLabel')}
               </Text>
               <TextInput
                 value={serverUrl}
                 onChangeText={setServerUrl}
-                placeholder="http://localhost:8080"
+                placeholder={tr('onboarding.config.serverUrlPlaceholder')}
                 placeholderTextColor="#525252"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -365,13 +372,13 @@ export default function OnboardingScreen({
               >
                 <Text className="text-text-primary font-semibold">
                   {loadingModels
-                    ? 'Chargement...'
-                    : 'Voir les modèles disponibles'}
+                    ? tr('common.loading')
+                    : tr('common.seeModels')}
                 </Text>
               </TouchableOpacity>
               {activeModel ? (
                 <Text className="text-sm text-text-muted text-center mt-2">
-                  Modèle sélectionné : {activeModel}
+                  {tr('common.modelSelected', { model: activeModel })}
                 </Text>
               ) : null}
             </View>
@@ -381,22 +388,21 @@ export default function OnboardingScreen({
             <View className="w-full mb-6">
               <View className="bg-surface rounded-xl p-5">
                 <Text className="text-text-primary font-semibold mb-2">
-                  Gemma 4 E2B
+                  {tr('onboarding.config.gemma4Title')}
                 </Text>
                 <Text className="text-sm text-text-secondary leading-5 mb-3">
-                  Modèle de dernière génération optimisé pour les appareils
-                  mobiles. Fonctionne entièrement hors-ligne.
+                  {tr('onboarding.config.gemma4Desc')}
                 </Text>
                 <View className="flex-row items-center gap-2 mb-1">
                   <Feather name="database" size={14} color={t.icon} />
                   <Text className="text-sm text-text-muted">
-                    Modèle principal : 2.19 GB
+                    {tr('onboarding.config.modelSize')}
                   </Text>
                 </View>
                 <View className="flex-row items-center gap-2">
                   <Feather name="database" size={14} color={t.icon} />
                   <Text className="text-sm text-text-muted">
-                    Vision (mmproj) : 986 MB
+                    {tr('onboarding.config.visionSize')}
                   </Text>
                 </View>
               </View>
@@ -408,7 +414,7 @@ export default function OnboardingScreen({
             className="bg-primary py-3.5 px-10 rounded-xl w-full items-center"
           >
             <Text className="text-white font-semibold text-base">
-              Continuer
+              {tr('common.continue')}
             </Text>
           </TouchableOpacity>
         </>
@@ -421,16 +427,16 @@ export default function OnboardingScreen({
             <Feather name="download" size={28} color={t.primary} />
           </View>
           <Text className="text-xl font-bold text-text-primary mb-6">
-            Téléchargement des modèles
+            {tr('onboarding.download.title')}
           </Text>
 
           {/* BGE-M3 */}
           <View className="w-full mb-5">
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-sm font-semibold text-text-primary">
-                BGE-M3 (Embedding)
+                {tr('onboarding.download.bgem3')}
               </Text>
-              <Text className="text-xs text-text-muted">438 MB</Text>
+              <Text className="text-xs text-text-muted">{tr('onboarding.download.bgem3Size')}</Text>
             </View>
             <View className="w-full h-3 bg-surface rounded-full overflow-hidden">
               <View
@@ -442,19 +448,19 @@ export default function OnboardingScreen({
             </View>
             <Text className="text-xs text-text-muted mt-1">
               {bgeM3State.status === 'idle'
-                ? 'En attente...'
+                ? tr('onboarding.download.pending')
                 : bgeM3State.status === 'downloading'
                   ? `${Math.round(bgeM3State.progress * 100)}%`
                   : bgeM3State.status === 'done'
-                    ? '✓ Terminé'
+                    ? tr('onboarding.download.completed')
                     : bgeM3State.status === 'skipped'
-                      ? 'Passé'
-                      : 'Erreur'}
+                      ? tr('onboarding.download.skipped')
+                      : tr('onboarding.download.error')}
             </Text>
             {bgeM3State.status === 'downloading' && (
               <TouchableOpacity onPress={handleSkipBGE} className="mt-2">
                 <Text className="text-text-muted text-sm text-center">
-                  Passer
+                  {tr('common.skip')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -468,7 +474,7 @@ export default function OnboardingScreen({
                   className="bg-danger py-2 rounded-xl items-center mt-2"
                 >
                   <Text className="text-white font-semibold text-sm">
-                    Réessayer
+                    {tr('common.retry')}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -480,9 +486,9 @@ export default function OnboardingScreen({
             <View className="w-full">
               <View className="flex-row items-center justify-between mb-2">
                 <Text className="text-sm font-semibold text-text-primary">
-                  Gemma 4 E2B (LLM)
+                  {tr('onboarding.download.gemma4')}
                 </Text>
-                <Text className="text-xs text-text-muted">~3.2 GB</Text>
+                <Text className="text-xs text-text-muted">{tr('onboarding.download.gemma4Size')}</Text>
               </View>
               <View className="w-full h-3 bg-surface rounded-full overflow-hidden">
                 <View
@@ -495,20 +501,20 @@ export default function OnboardingScreen({
               <Text className="text-xs text-text-muted mt-1">
                 {gemma4State.status === 'idle'
                   ? bgeM3Done
-                    ? 'Prêt...'
-                    : 'En attente de BGE-M3...'
+                    ? tr('onboarding.download.ready')
+                    : tr('onboarding.download.waiting')
                   : gemma4State.status === 'downloading'
                     ? `${Math.round(gemma4State.progress * 100)}%`
                     : gemma4State.status === 'done'
-                      ? '✓ Terminé'
+                      ? tr('onboarding.download.completed')
                       : gemma4State.status === 'skipped'
-                        ? 'Passé'
-                        : 'Erreur'}
+                        ? tr('onboarding.download.skipped')
+                        : tr('onboarding.download.error')}
               </Text>
               {gemma4State.status === 'downloading' && (
                 <TouchableOpacity onPress={handleSkipGemma4} className="mt-2">
                   <Text className="text-text-muted text-sm text-center">
-                    Passer
+                    {tr('common.skip')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -522,7 +528,7 @@ export default function OnboardingScreen({
                     className="bg-danger py-2 rounded-xl items-center mt-2"
                   >
                     <Text className="text-white font-semibold text-sm">
-                      Réessayer
+                      {tr('common.retry')}
                     </Text>
                   </TouchableOpacity>
                 </>
@@ -539,18 +545,17 @@ export default function OnboardingScreen({
             <Feather name="check" size={32} color={t.primary} />
           </View>
           <Text className="text-xl font-bold text-text-primary mb-2">
-            Configuration terminée !
+            {tr('onboarding.ready.title')}
           </Text>
           <Text className="text-base text-text-secondary text-center mb-8 leading-6">
-            Vous pouvez maintenant importer des documents et poser des
-            questions.
+            {tr('onboarding.ready.description')}
           </Text>
           <TouchableOpacity
             onPress={handleReadyContinue}
             className="bg-primary py-3.5 px-10 rounded-xl w-full items-center"
           >
             <Text className="text-white font-semibold text-base">
-              Commencer
+              {tr('common.start')}
             </Text>
           </TouchableOpacity>
         </>

@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as Sharing from 'expo-sharing';
 import { Alert, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,11 +27,13 @@ import { storeEmbeddings } from '../../lib/vector-store';
 import type { FileItem } from '../../lib/types';
 import { useTokens } from '../../lib/theme-tokens';
 
-const FILTERS = ['Tous', 'PDF', 'Word', 'Indexés', 'En attente'];
+const FILTER_KEYS = ['filterAll', 'filterPdf', 'filterWord', 'filterIndexed', 'filterPending'];
 
 export default function FilesScreen() {
+  const { t: tr } = useTranslation();
+  const filterLabels = [tr('files.filterAll'), tr('files.filterPdf'), tr('files.filterWord'), tr('files.filterIndexed'), tr('files.filterPending')];
   const [documents, setDocuments] = useState<FileItem[]>([]);
-  const [activeFilter, setActiveFilter] = useState('Tous');
+  const [activeFilter, setActiveFilter] = useState(tr('files.filterAll'));
   const [search, setSearch] = useState('');
   const indexingIds = useRef<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
@@ -132,14 +135,14 @@ export default function FilesScreen() {
 
   const handleDelete = useCallback((id: string, name: string) => {
     Alert.alert(
-      'Supprimer le fichier',
-      `Supprimer "${name}" et toutes ses données indexées ?`,
+      tr('files.deleteTitle'),
+      tr('files.deleteMessage', { name }),
       [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: () => { deleteDocument(id); loadDocuments(); } },
+        { text: tr('common.cancel'), style: 'cancel' },
+        { text: tr('common.delete'), style: 'destructive', onPress: () => { deleteDocument(id); loadDocuments(); } },
       ],
     );
-  }, [loadDocuments]);
+  }, [loadDocuments, tr]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -159,11 +162,11 @@ export default function FilesScreen() {
       const q = search.toLowerCase();
       if (!f.name.toLowerCase().includes(q)) return false;
     }
-    if (activeFilter === 'Tous') return true;
-    if (activeFilter === 'PDF') return f.type === 'pdf';
-    if (activeFilter === 'Word') return f.type === 'docx';
-    if (activeFilter === 'Indexés') return f.status === 'indexed';
-    if (activeFilter === 'En attente') return f.status === 'pending' || f.status === 'indexing' || f.status === 'error';
+    if (activeFilter === filterLabels[0]) return true;
+    if (activeFilter === filterLabels[1]) return f.type === 'pdf';
+    if (activeFilter === filterLabels[2]) return f.type === 'docx';
+    if (activeFilter === filterLabels[3]) return f.status === 'indexed';
+    if (activeFilter === filterLabels[4]) return f.status === 'pending' || f.status === 'indexing' || f.status === 'error';
     return true;
   });
 
@@ -172,7 +175,7 @@ export default function FilesScreen() {
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <ScreenHeader
-        title="Fichiers"
+        title={tr('files.title')}
         rightAction={
           <TouchableOpacity onPress={handlePick} className="p-1" disabled={isLoading}>
             <Feather name="plus" size={24} color={isLoading ? t.textSubtle : t.icon} />
@@ -181,12 +184,12 @@ export default function FilesScreen() {
       />
 
       <SearchBar
-        placeholder="Rechercher un fichier..."
+        placeholder={tr('files.searchPlaceholder')}
         value={search}
         onChangeText={setSearch}
       />
 
-      <FilterChips filters={FILTERS} active={activeFilter} onSelect={setActiveFilter} />
+      <FilterChips filters={filterLabels} active={activeFilter} onSelect={setActiveFilter} />
 
       <FlatList
         data={filtered}
@@ -211,8 +214,8 @@ export default function FilesScreen() {
         ListEmptyComponent={
           <EmptyState
             icon="inbox"
-            label="Aucun fichier trouvé"
-            description="Ajoutez un PDF ou un document Word avec le bouton +"
+            label={tr('files.emptyTitle')}
+            description={tr('files.emptyDescription')}
           />
         }
       />
