@@ -51,7 +51,7 @@ export default function Index() {
     }, [id]),
   );
 
-  const { messages, sendMessage, streaming, compacting, regenerating, regenerateResponse, editAndResend, cancelStreaming, lastDurationMs, lastTokenCount } = useStreamChat({
+  const { messages, sendMessage, streaming, compacting, regenerating, regenerateResponse, editAndResend, cancelStreaming } = useStreamChat({
     conversationId: id,
     onConversationChange,
     webSearchEnabled,
@@ -179,8 +179,6 @@ export default function Index() {
               content={msg.content}
               image={msg.image}
               condensed={msg.condensed}
-              durationMs={isLastAssistant ? lastDurationMs : undefined}
-              tokenCount={isLastAssistant ? lastTokenCount : undefined}
               onEdit={msg.role === 'user' && !msg.condensed ? () => setEditingMessage({ id: msg.id, text: msg.content }) : undefined}
               onCopy={() => handleCopy(msg.content)}
               onRegenerate={msg.role === 'assistant' && isLastAssistant ? () => regenerateResponse?.() : undefined}

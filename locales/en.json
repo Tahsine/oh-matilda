@@ -44,11 +44,6 @@
       "placeholder": "Message Oh Matilda...",
       "editing": "Editing message..."
     },
-    "bubble": {
-      "infoTitleAssistant": "Response",
-      "infoTitleUser": "Message",
-      "noInfo": "No information"
-    },
     "thinking": {
       "thinking": "Agent is thinking",
       "searching": "Searching documents",

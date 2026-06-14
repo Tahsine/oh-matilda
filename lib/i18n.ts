@@ -5,12 +5,14 @@ import fr from '../locales/fr.json';
 import en from '../locales/en.json';
 import { getSetting, setSetting } from './settings';
 
-i18n.use(initReactI18next).init({
-  resources: { fr: { translation: fr }, en: { translation: en } },
-  lng: 'fr',
-  fallbackLng: 'fr',
-  interpolation: { escapeValue: false },
-});
+export function initI18n(): void {
+  i18n.use(initReactI18next).init({
+    resources: { fr: { translation: fr }, en: { translation: en } },
+    lng: 'fr',
+    fallbackLng: 'fr',
+    interpolation: { escapeValue: false },
+  });
+}
 
 export function detectLanguage(): void {
   const saved = getSetting('language');

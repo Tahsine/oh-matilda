@@ -369,7 +369,5 @@ export function useStreamChat({ conversationId, onConversationChange, webSearchE
     regenerateResponse,
     editAndResend,
     cancelStreaming,
-    lastDurationMs: lastDurationRef.current,
-    lastTokenCount: lastTokensRef.current,
   };
 }
