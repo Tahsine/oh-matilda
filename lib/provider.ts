@@ -1,5 +1,5 @@
 import { getBgeM3Path, getGemma4Path, getMmprojPath } from './models';
-import { prepareEmbeddingModel, prepareLanguageModel, createLocalProvider } from './providers/llama-provider';
+import { prepareEmbeddingModel, prepareLanguageModel, createLocalProvider, checkGpuSupport } from './providers/llama-provider';
 import { createModel, getActiveProvider, getProviderInfo as getRegistryInfo } from './providers/registry';
 import i18n from './i18n';
 
@@ -66,6 +66,8 @@ export function getModel(modelId?: string) {
   }
   return createModel(modelId);
 }
+
+export { checkGpuSupport };
 
 export function getEmbeddingModel() {
   if (cachedEmbeddingModel) return cachedEmbeddingModel;

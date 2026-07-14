@@ -11,6 +11,7 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.14",
     "@ai-sdk/react": "^3.0.200",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-ai/llama": "^0.12.0",

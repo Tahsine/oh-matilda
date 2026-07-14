@@ -46,6 +46,21 @@ export async function prepareLanguageModel(path: string, projectorPath?: string)
   return model;
 }
 
+export async function checkGpuSupport(): Promise<boolean> {
+  try {
+    const { getBackendDevicesInfo } = await import('llama.rn');
+    const devices = await getBackendDevicesInfo();
+    const hasGpu = devices.some(
+      (d: any) => d.type === 'gpu' || d.backendType === 'gpu' || d.deviceName?.includes('GPU'),
+    );
+    console.log('[gpu] devices:', JSON.stringify(devices), 'hasGpu:', hasGpu);
+    return hasGpu;
+  } catch {
+    console.log('[gpu] checkGpuSupport failed (likely no native module)');
+    return false;
+  }
+}
+
 export function createLocalProvider(projectorPath?: string) {
   if (!llamaModule) {
     throw new Error(

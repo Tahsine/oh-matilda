@@ -8,8 +8,8 @@ import { colorScheme, useColorScheme, vars } from "nativewind";
 import { useFonts } from 'expo-font';
 import { Toast } from "../components/ui/Toast";
 import { isModelReady } from "../lib/models";
-import { prepareEmbedding, prepareLocalLLM } from "../lib/provider";
-import { getActiveProvider } from "../lib/providers/registry";
+import { prepareEmbedding, prepareLocalLLM, checkGpuSupport } from "../lib/provider";
+import { getActiveProvider, setGpuSupported } from "../lib/providers/registry";
 import { getSetting } from "../lib/settings";
 import { detectLanguage, initI18n } from "../lib/i18n";
 import OnboardingScreen from "./onboarding";
@@ -95,6 +95,8 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
       return;
     }
+    const gpuOk = await checkGpuSupport();
+    setGpuSupported(gpuOk);
     const ready = await isModelReady();
     setPhase(ready ? "app" : "onboarding");
     SplashScreen.hideAsync();

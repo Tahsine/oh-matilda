@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai';
 
-export type ProviderName = 'ollama-cloud' | 'ollama-hosted' | 'llama-local';
+export type ProviderName = 'ollama-cloud' | 'ollama-hosted' | 'self-hosted' | 'llama-local';
 
 export type ProviderConfig = {
   provider: ProviderName;

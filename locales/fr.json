@@ -13,6 +13,7 @@
     "skip": "Passer",
     "continue": "Continuer",
     "start": "Commencer",
+    "back": "Retour",
     "apply": "Appliquer",
     "applying": "Application...",
     "download": "Télécharger",
@@ -53,16 +54,17 @@
   },
   "onboarding": {
     "welcome": {
-      "title": "Bienvenue sur Matilda",
+      "title": "Bienvenue sur Oh Matilda",
       "subtitle": "Choisissez votre mode de fonctionnement"
     },
     "provider": {
       "ollamaCloud": "Ollama Cloud",
       "ollamaCloudDesc": "Hébergé par Ollama. Clé API requise.",
       "selfHosted": "Auto-hébergé",
-      "selfHostedDesc": "Votre propre serveur Ollama.",
+      "selfHostedDesc": "Connectez-vous à tout backend compatible OpenAI (Ollama, llama.cpp, LM Studio, vLLM…)",
       "onDevice": "Sur l'appareil",
-      "onDeviceDesc": "Gemma 4 E2B en local. ~3.2 GB à télécharger."
+      "onDeviceDesc": "Gemma 4 E2B en local. ~3.2 GB à télécharger.",
+      "gpuUnsupported": "GPU non supporté sur cet appareil"
     },
     "config": {
       "title": "Configuration {{provider}}",
@@ -74,7 +76,8 @@
       "gemma4Title": "Gemma 4 E2B",
       "gemma4Desc": "Modèle de dernière génération optimisé pour les appareils mobiles. Fonctionne entièrement hors-ligne.",
       "modelSize": "Modèle principal : 2.19 GB",
-      "visionSize": "Vision (mmproj) : 986 MB"
+      "visionSize": "Vision (mmproj) : 986 MB",
+      "modelSelectorHint": "Tapez pour choisir un autre modèle"
     },
     "download": {
       "title": "Téléchargement des modèles",
@@ -159,6 +162,8 @@
     "loadModelsError": "Impossible de charger les modèles.",
     "reloadingModel": "Rechargement du modèle LLM...",
     "preparingLocal": "Préparation du modèle local...",
+    "selfHostedHelp": "Pointez vers un backend compatible OpenAI (Ollama, llama.cpp, LM Studio, etc.)",
+    "gpuUnsupported": "GPU non supporté sur cet appareil",
     "getApiKeyLink": "Get Your Free Key →",
     "getTavilyKeyLink": "Get Your Free Key →"
   },

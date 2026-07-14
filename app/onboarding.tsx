@@ -14,9 +14,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  isGemma4Ready,
-  isModelReady,
-  isMmprojReady,
   onDownloadState,
   onGemma4DownloadState,
   retryDownload,
@@ -25,12 +22,13 @@ import {
   skipGemma4Download,
   startDownload,
   startGemma4Download,
-  type DownloadState,
+  type DownloadState
 } from '../lib/models';
 import { prepareEmbedding, prepareLocalLLM } from '../lib/provider';
 import {
   fetchModels,
   getAdapter,
+  isGpuSupported,
   saveProviderConfig,
 } from '../lib/providers/registry';
 import type { ProviderName } from '../lib/providers/types';
@@ -42,25 +40,32 @@ function getProviders(t: (key: string) => string): {
   label: string;
   icon: keyof typeof Feather.glyphMap;
   desc: string;
+  available: boolean;
+  reason?: string;
 }[] {
+  const gpuOk = isGpuSupported();
   return [
     {
       name: 'ollama-cloud',
       label: t('onboarding.provider.ollamaCloud'),
       icon: 'cloud',
       desc: t('onboarding.provider.ollamaCloudDesc'),
+      available: true,
     },
     {
-      name: 'ollama-hosted',
+      name: 'self-hosted',
       label: t('onboarding.provider.selfHosted'),
       icon: 'server',
       desc: t('onboarding.provider.selfHostedDesc'),
+      available: true,
     },
     {
       name: 'llama-local',
       label: t('onboarding.provider.onDevice'),
       icon: 'smartphone',
       desc: t('onboarding.provider.onDeviceDesc'),
+      available: gpuOk,
+      reason: gpuOk ? undefined : t('onboarding.provider.gpuUnsupported'),
     },
   ];
 }
@@ -82,8 +87,8 @@ export default function OnboardingScreen({
 
   // Config state
   const [apiKey, setApiKey] = useState('');
-  const [serverUrl, setServerUrl] = useState('http://localhost:8080');
-  const [activeModel, setActiveModel] = useState('');
+  const [serverUrl, setServerUrl] = useState('http://192.168.1.100:11434');
+  const [activeModel, setActiveModel] = useState(getAdapter('ollama-cloud').defaultModel);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -138,6 +143,8 @@ export default function OnboardingScreen({
   }, [step, downloadDone, isLocal, onComplete]);
 
   const handleSelectProvider = (name: ProviderName) => {
+    const p = PROVIDERS.find(x => x.name === name);
+    if (p && !p.available) return;
     setSelectedProvider(name);
     const adapter = getAdapter(name);
     setActiveModel(adapter.defaultModel);
@@ -147,7 +154,7 @@ export default function OnboardingScreen({
     saveProviderConfig({
       provider: selectedProvider,
       apiKey: selectedProvider === 'ollama-cloud' ? apiKey : undefined,
-      baseUrl: selectedProvider === 'ollama-hosted' ? serverUrl : undefined,
+      baseUrl: selectedProvider === 'self-hosted' ? serverUrl : undefined,
       activeModel,
     });
     if (isLocal) {
@@ -214,7 +221,7 @@ export default function OnboardingScreen({
         >
           <View className="bg-surface rounded-2xl overflow-hidden max-h-[60%]">
             <Text className="text-text-primary text-lg font-semibold text-center py-4 border-b border-border">
-              {tr('settings.modelPicker.title')}
+              {tr('settings.chooseModel')}
             </Text>
             <ScrollView>
               {availableModels.map((m, i) => (
@@ -245,22 +252,23 @@ export default function OnboardingScreen({
           <Text className="text-2xl font-bold text-text-primary mb-2">
             {tr('onboarding.welcome.title')}
           </Text>
-          <Text className="text-base text-text-secondary text-center mb-8 leading-6">
+          <Text className="text-base text-text-secondary text-center mb-4 leading-6">
             {tr('onboarding.welcome.subtitle')}
           </Text>
 
-          <View className="w-full gap-3 mb-8">
+          <View className="w-full gap-3 mb-4">
             {PROVIDERS.map((p) => {
               const active = selectedProvider === p.name;
               return (
                 <TouchableOpacity
                   key={p.name}
                   onPress={() => handleSelectProvider(p.name)}
+                  disabled={!p.available}
                   className={`flex-row items-center gap-4 p-4 rounded-xl border-2 ${
                     active
                       ? 'border-primary bg-primary/10'
                       : 'border-border bg-surface'
-                  }`}
+                  } ${!p.available ? 'opacity-50' : ''}`}
                 >
                   <View
                     className={`w-10 h-10 rounded-full items-center justify-center ${
@@ -282,6 +290,11 @@ export default function OnboardingScreen({
                       {p.label}
                     </Text>
                     <Text className="text-sm text-text-muted">{p.desc}</Text>
+                    {!p.available && p.reason && (
+                      <View className="bg-warning/20 self-start rounded-full px-2.5 py-0.5 mt-1">
+                        <Text className="text-xs text-warning font-medium">{p.reason}</Text>
+                      </View>
+                    )}
                   </View>
                   {active && (
                     <Feather name="check-circle" size={20} color={t.primary} />
@@ -336,23 +349,20 @@ export default function OnboardingScreen({
               <TouchableOpacity
                 onPress={handleFetchModels}
                 disabled={loadingModels}
-                className="bg-surface-hover py-3 rounded-xl items-center"
+                className="bg-surface rounded-xl px-4 py-3.5 flex-row items-center justify-between"
               >
-                <Text className="text-text-primary font-semibold">
-                  {loadingModels
-                    ? tr('common.loading')
-                    : tr('common.seeModels')}
+                <Text className="text-text-primary text-base font-medium">
+                  {loadingModels ? tr('common.loading') : activeModel}
                 </Text>
+                <Feather name="chevron-down" size={18} color={t.icon} />
               </TouchableOpacity>
-              {activeModel ? (
-                <Text className="text-sm text-text-muted text-center mt-2">
-                  {tr('common.modelSelected', { model: activeModel })}
-                </Text>
-              ) : null}
+              <Text className="text-xs text-text-muted text-center mt-1.5">
+                {tr('onboarding.config.modelSelectorHint')}
+              </Text>
             </View>
           )}
 
-          {selectedProvider === 'ollama-hosted' && (
+          {selectedProvider === 'self-hosted' && (
             <View className="w-full mb-6">
               <Text className="text-sm text-text-secondary mb-2">
                 {tr('onboarding.config.serverUrlLabel')}
@@ -369,19 +379,16 @@ export default function OnboardingScreen({
               <TouchableOpacity
                 onPress={handleFetchModels}
                 disabled={loadingModels}
-                className="bg-surface-hover py-3 rounded-xl items-center"
+                className="bg-surface rounded-xl px-4 py-3.5 flex-row items-center justify-between"
               >
-                <Text className="text-text-primary font-semibold">
-                  {loadingModels
-                    ? tr('common.loading')
-                    : tr('common.seeModels')}
+                <Text className="text-text-primary text-base font-medium">
+                  {loadingModels ? tr('common.loading') : activeModel}
                 </Text>
+                <Feather name="chevron-down" size={18} color={t.icon} />
               </TouchableOpacity>
-              {activeModel ? (
-                <Text className="text-sm text-text-muted text-center mt-2">
-                  {tr('common.modelSelected', { model: activeModel })}
-                </Text>
-              ) : null}
+              <Text className="text-xs text-text-muted text-center mt-1.5">
+                {tr('onboarding.config.modelSelectorHint')}
+              </Text>
             </View>
           )}
 
@@ -416,6 +423,14 @@ export default function OnboardingScreen({
           >
             <Text className="text-white font-semibold text-base">
               {tr('common.continue')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setStep('provider')}
+            className="py-3 px-10 w-full items-center"
+          >
+            <Text className="text-text-secondary text-sm font-medium">
+              ← {tr('common.back')}
             </Text>
           </TouchableOpacity>
         </>

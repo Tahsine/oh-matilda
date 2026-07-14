@@ -200,7 +200,7 @@ export default function SettingsScreen() {
 
     if (name === 'ollama-cloud') {
       setShowApiKeyModal(true);
-    } else if (name === 'ollama-hosted') {
+    } else if (name === 'self-hosted') {
       setShowApiKeyModal(true);
     }
     setShowProviderPicker(false);
@@ -294,7 +294,14 @@ export default function SettingsScreen() {
                 disabled={!p.available}
                 className={`flex-row items-center justify-between px-5 py-4 ${providerName === p.name ? 'bg-primary/20' : ''} ${i < availableProviders.length - 1 ? 'border-b border-border' : ''}`}
               >
-                <Text className={`text-base ${p.available ? 'text-text-primary' : 'text-text-muted'}`}>{p.label}</Text>
+                <View className="flex-1 flex-row items-center gap-2">
+                  <Text className={`text-base ${p.available ? 'text-text-primary' : 'text-text-muted'}`}>{p.label}</Text>
+                  {!p.available && p.reason && (
+                    <View className="bg-warning/20 rounded-full px-2 py-0.5">
+                      <Text className="text-xs text-warning font-medium">{p.reason}</Text>
+                    </View>
+                  )}
+                </View>
                 {providerName === p.name && (
                     <Feather name="check" size={18} color={t.info} />
                 )}
@@ -466,7 +473,7 @@ export default function SettingsScreen() {
           <SettingsRow
             label={tr('settings.serverUrl')}
             right={
-              providerName === 'ollama-hosted' ? (
+              providerName === 'self-hosted' ? (
                 <TextInput
                   value={serverUrl}
                   onChangeText={(v) => { setServerUrl(v); setSetting('server_url', v); }}
@@ -481,6 +488,11 @@ export default function SettingsScreen() {
               )
             }
           />
+          {providerName === 'self-hosted' && (
+            <Text className="text-text-secondary text-xs px-4 pb-2">
+              {tr('settings.selfHostedHelp')}
+            </Text>
+          )}
           <Divider />
           <TouchableOpacity onPress={() => setShowApiKeyModal(true)} activeOpacity={0.7}>
             <SettingsRow
