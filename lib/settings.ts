@@ -1,11 +1,11 @@
 import { getDB } from './db';
 
-type SettingKey = 'offline_mode' | 'reasoning' | 'temperature' | 'server_url' | 'provider' | 'active_model' | 'embedding_model' | 'theme' | 'api_key' | 'tavily_api_key' | 'onboarded' | 'llm_n_ctx' | 'llm_n_gpu_layers' | 'llm_n_batch' | 'llm_n_threads' | 'llm_flash_attn' | 'custom_prompt' | 'language';
+type SettingKey = 'offline_mode' | 'reasoning' | 'temperature' | 'server_url' | 'provider' | 'active_model' | 'embedding_model' | 'theme' | 'api_key' | 'tavily_api_key' | 'onboarded' | 'llm_n_ctx' | 'llm_n_gpu_layers' | 'llm_n_batch' | 'llm_n_ubatch' | 'llm_n_threads' | 'llm_flash_attn' | 'llm_speculative' | 'custom_prompt' | 'language';
 
 const DEFAULTS: Record<SettingKey, string> = {
   offline_mode: 'false',
   reasoning: 'false',
-  temperature: '1.0',
+  temperature: '0.6',
   server_url: '',
   provider: 'ollama-cloud',
   active_model: 'minimax-m3:cloud',
@@ -17,8 +17,10 @@ const DEFAULTS: Record<SettingKey, string> = {
   llm_n_ctx: '4096',
   llm_n_gpu_layers: '99',
   llm_n_batch: '512',
+  llm_n_ubatch: '384',
   llm_n_threads: '4',
-  llm_flash_attn: 'false',
+  llm_flash_attn: 'auto',
+  llm_speculative: 'false',
   custom_prompt: '',
   language: '',
 };

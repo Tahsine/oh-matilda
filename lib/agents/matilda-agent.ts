@@ -1,4 +1,4 @@
-import { type Tool, ToolLoopAgent, type InferAgentUIMessage, type ModelMessage, stepCountIs } from 'ai';
+import { type Tool, ToolLoopAgent, type ModelMessage, stepCountIs } from 'ai';
 import { getModel } from '../provider';
 import { getActiveProvider } from '../providers/registry';
 import { getBoolean, getSetting } from '../settings';
@@ -58,7 +58,3 @@ export function createAgent(config?: {
     },
   });
 }
-
-export const matildaAgent = createAgent();
-
-export type MatildaUIMessage = InferAgentUIMessage<typeof matildaAgent>;

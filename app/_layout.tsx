@@ -8,7 +8,8 @@ import { colorScheme, useColorScheme, vars } from "nativewind";
 import { useFonts } from 'expo-font';
 import { Toast } from "../components/ui/Toast";
 import { isModelReady } from "../lib/models";
-import { prepareEmbedding } from "../lib/provider";
+import { prepareEmbedding, prepareLocalLLM } from "../lib/provider";
+import { getActiveProvider } from "../lib/providers/registry";
 import { getSetting } from "../lib/settings";
 import { detectLanguage, initI18n } from "../lib/i18n";
 import OnboardingScreen from "./onboarding";
@@ -99,6 +100,9 @@ export default function RootLayout() {
     SplashScreen.hideAsync();
     if (ready) {
       prepareEmbedding();
+      if (getActiveProvider().provider === 'llama-local') {
+        prepareLocalLLM().catch(err => console.warn('[layout] prepareLocalLLM failed:', err));
+      }
     }
   }, []);
 

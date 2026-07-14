@@ -1,6 +1,14 @@
 import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
-import i18n from './i18n';
 import type { Chunk, Conversation, FileItem, FileStatus, FileType, Message } from './types';
+
+function getLocale(): string {
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale;
+    return locale.startsWith('fr') ? 'fr-FR' : 'en-US';
+  } catch {
+    return 'en-US';
+  }
+}
 
 let db: SQLiteDatabase | null = null;
 
@@ -305,7 +313,7 @@ function rowToDocument(row: DBRowDocument): FileItem {
     name: row.name,
     type: row.type as FileType,
     size: row.size,
-    date: new Date(row.date).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US'),
+    date: new Date(row.date).toLocaleDateString(getLocale()),
     status: row.status as FileStatus,
     localUri: row.localUri,
     errorMessage: row.errorMessage ?? undefined,
@@ -362,7 +370,7 @@ export function insertDocument(
     type,
     size,
     status: 'pending',
-    date: new Date(now).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US'),
+    date: new Date(now).toLocaleDateString(getLocale()),
     localUri,
   };
 }

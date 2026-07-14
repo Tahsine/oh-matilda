@@ -2,10 +2,31 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { downloadModel } from '@react-native-ai/llama';
 import i18n from './i18n';
 
+// Minimum file sizes (80% of expected) to detect partial / interrupted downloads
+const BGE3_MIN_BYTES = 350_400_000;
+const GEMMA4_MIN_BYTES = 1_752_000_000;
+const MMPROJ_MIN_BYTES = 788_800_000;
+
 export const BGE_M3_REPO = 'bbvch-ai/bge-m3-GGUF/bge-m3-q4_k_m.gguf';
 
 export function getBgeM3Path(): string {
   return (FileSystem.documentDirectory ?? '') + 'llama-models/bge-m3-q4_k_m.gguf';
+}
+
+async function isFileValid(filePath: string, minBytes: number): Promise<boolean> {
+  try {
+    const info = await FileSystem.getInfoAsync(filePath);
+    if (!info.exists) return false;
+    const size = (info as any).size as number | undefined;
+    if (size !== undefined && size > 0 && size < minBytes) {
+      console.warn(`[models] partial/corrupt file detected: ${filePath} (${size} bytes < ${minBytes} min), deleting`);
+      await FileSystem.deleteAsync(filePath, { idempotent: true });
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export type DownloadState = {
@@ -29,16 +50,7 @@ export function onDownloadState(cb: (s: DownloadState) => void) {
 }
 
 export async function isModelReady(): Promise<boolean> {
-  try {
-    const path = getBgeM3Path();
-    console.log('[models] checking path:', path);
-    const info = await FileSystem.getInfoAsync(path);
-    console.log('[models] getInfoAsync result:', JSON.stringify(info));
-    return info.exists;
-  } catch (e) {
-    console.warn('[models] isModelReady error:', e);
-    return false;
-  }
+  return isFileValid(getBgeM3Path(), BGE3_MIN_BYTES);
 }
 
 export async function startDownload(): Promise<void> {
@@ -140,21 +152,11 @@ export function onGemma4DownloadState(cb: (s: DownloadState) => void) {
 }
 
 export async function isGemma4Ready(): Promise<boolean> {
-  try {
-    const info = await FileSystem.getInfoAsync(getGemma4Path());
-    return info.exists;
-  } catch {
-    return false;
-  }
+  return isFileValid(getGemma4Path(), GEMMA4_MIN_BYTES);
 }
 
 export async function isMmprojReady(): Promise<boolean> {
-  try {
-    const info = await FileSystem.getInfoAsync(getMmprojPath());
-    return info.exists;
-  } catch {
-    return false;
-  }
+  return isFileValid(getMmprojPath(), MMPROJ_MIN_BYTES);
 }
 
 export function skipGemma4Download(): void {

@@ -9,13 +9,23 @@ try {
   // Native module not available (Expo Go or missing dev build)
 }
 
+function normalizeFlashAttn(val: string): 'auto' | 'on' | 'off' {
+  if (val === 'true') return 'auto';
+  if (val === 'false') return 'off';
+  if (val === 'on' || val === 'auto') return val;
+  return 'off';
+}
+
 function readContextParams() {
+  const speculative = getSetting('llm_speculative') === 'true';
   return {
     n_ctx: parseInt(getSetting('llm_n_ctx'), 10) || 4096,
     n_gpu_layers: parseInt(getSetting('llm_n_gpu_layers'), 10) || 99,
     n_batch: parseInt(getSetting('llm_n_batch'), 10) || 512,
+    n_ubatch: parseInt(getSetting('llm_n_ubatch'), 10) || 384,
     n_threads: parseInt(getSetting('llm_n_threads'), 10) || 4,
-    flash_attn_type: getSetting('llm_flash_attn') === 'true' ? ('auto' as const) : ('off' as const),
+    flash_attn_type: normalizeFlashAttn(getSetting('llm_flash_attn')),
+    ...(speculative ? { speculative: { type: 'draft-mtp' as const, n_max: 3 } } : {}),
   };
 }
 

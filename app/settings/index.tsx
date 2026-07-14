@@ -63,8 +63,10 @@ export default function SettingsScreen() {
   const [llmNCtx, setLlmNCtx] = useState('4096');
   const [llmNGpuLayers, setLlmNGpuLayers] = useState('99');
   const [llmNBatch, setLlmNBatch] = useState('512');
+  const [llmNUbatch, setLlmNUbatch] = useState('384');
   const [llmNThreads, setLlmNThreads] = useState('4');
-  const [llmFlashAttn, setLlmFlashAttn] = useState(false);
+  const [llmFlashAttn, setLlmFlashAttn] = useState('auto');
+  const [llmSpeculative, setLlmSpeculative] = useState(true);
   const [reloading, setReloading] = useState(false);
   const [preparingLocal, setPreparingLocal] = useState(false);
 
@@ -88,8 +90,10 @@ export default function SettingsScreen() {
     setLlmNCtx(getSetting('llm_n_ctx'));
     setLlmNGpuLayers(getSetting('llm_n_gpu_layers'));
     setLlmNBatch(getSetting('llm_n_batch'));
+    setLlmNUbatch(getSetting('llm_n_ubatch'));
     setLlmNThreads(getSetting('llm_n_threads'));
-    setLlmFlashAttn(getBoolean('llm_flash_attn'));
+    setLlmFlashAttn(getSetting('llm_flash_attn'));
+    setLlmSpeculative(getBoolean('llm_speculative'));
 
     const config = getActiveProvider();
     setProviderName(config.provider);
@@ -212,8 +216,10 @@ export default function SettingsScreen() {
     setSetting('llm_n_ctx', llmNCtx);
     setSetting('llm_n_gpu_layers', llmNGpuLayers);
     setSetting('llm_n_batch', llmNBatch);
+    setSetting('llm_n_ubatch', llmNUbatch);
     setSetting('llm_n_threads', llmNThreads);
-    setBoolean('llm_flash_attn', llmFlashAttn);
+    setSetting('llm_flash_attn', llmFlashAttn);
+    setBoolean('llm_speculative', llmSpeculative);
     setReloading(true);
     try {
       await reloadLocalLLM();
@@ -706,6 +712,18 @@ export default function SettingsScreen() {
                   </View>
                   <Divider />
                   <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
+                    <Text className="text-text-primary text-base">{tr('settings.llmMicroBatch')}</Text>
+                    <TextInput
+                      value={llmNUbatch}
+                      onChangeText={setLlmNUbatch}
+                      keyboardType="number-pad"
+                      className="text-text-primary text-sm text-right w-24 bg-bg rounded-xl px-3 py-1"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                  <Divider />
+                  <View className="flex-row items-center justify-between px-4 py-3.5 bg-surface">
                     <Text className="text-text-primary text-base">{tr('settings.llmThreads')}</Text>
                     <TextInput
                       value={llmNThreads}
@@ -717,12 +735,27 @@ export default function SettingsScreen() {
                     />
                   </View>
                   <Divider />
+                  <TouchableOpacity onPress={() => {
+                    const cycle: Record<string, string> = { 'off': 'on', 'on': 'auto', 'auto': 'off' };
+                    setLlmFlashAttn(cycle[llmFlashAttn] ?? 'auto');
+                  }} activeOpacity={0.7}>
+                    <SettingsRow
+                      label={tr('settings.llmFlashAttention')}
+                      right={
+                        <View className="flex-row items-center gap-1">
+                          <Text className="text-text-secondary text-sm uppercase">{llmFlashAttn}</Text>
+                          <Feather name="chevron-right" size={16} color={t.icon} />
+                        </View>
+                      }
+                    />
+                  </TouchableOpacity>
+                  <Divider />
                   <SettingsRow
-                    label={tr('settings.llmFlashAttention')}
+                    label={tr('settings.llmSpeculative')}
                     right={
                       <Switch
-                        value={llmFlashAttn}
-                        onValueChange={setLlmFlashAttn}
+                        value={llmSpeculative}
+                        onValueChange={setLlmSpeculative}
                         trackColor={{ false: '#525252', true: '#64748B' }}
                         thumbColor="#fff"
                       />

@@ -27,7 +27,7 @@ import {
   startGemma4Download,
   type DownloadState,
 } from '../lib/models';
-import { prepareEmbedding } from '../lib/provider';
+import { prepareEmbedding, prepareLocalLLM } from '../lib/provider';
 import {
   fetchModels,
   getAdapter,
@@ -122,14 +122,15 @@ export default function OnboardingScreen({
     gemma4State.status === 'skipped';
   const downloadDone = bgeM3Done && (!isLocal || gemma4Done);
 
-  // When download step completes, wait a beat then go to ready
+  // When download step completes, prepare models then transition
   useEffect(() => {
     if (step === 'download' && downloadDone) {
       if (isLocal) {
-        setSetting('onboarded', 'true');
-        prepareEmbedding();
-        const timer = setTimeout(() => onComplete(), 600);
-        return () => clearTimeout(timer);
+        (async () => {
+          setSetting('onboarded', 'true');
+          await Promise.all([prepareEmbedding(), prepareLocalLLM()]);
+          onComplete();
+        })();
       } else {
         setStep('ready');
       }
