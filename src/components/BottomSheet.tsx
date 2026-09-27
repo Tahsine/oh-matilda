@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { ImageIcon, FileText, Globe, Sliders, Check, ChevronDown } from '@/lib/icons';
 import { motion, AnimatePresence } from 'motion/react';
-import type { ToneType } from '@/types';
+import { SHOW_WEBSEARCH } from '@/lib/flags';
+import type { Mode } from '@/types';
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -10,8 +11,8 @@ interface BottomSheetProps {
   onAttachFile: () => void;
   webEnabled: boolean;
   onToggleWeb: () => void;
-  tone: ToneType;
-  onChangeTone: (tone: ToneType) => void;
+  mode: Mode;
+  onChangeMode: (mode: Mode) => void;
 }
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({
@@ -21,8 +22,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   onAttachFile,
   webEnabled,
   onToggleWeb,
-  tone,
-  onChangeTone,
+  mode,
+  onChangeMode,
 }) => {
   const [showToneOptions, setShowToneOptions] = useState<boolean>(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -49,10 +50,9 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     if (dragDelta.current > 120) onClose();
   };
 
-  const toneLabels: Record<ToneType, string> = {
-    formal: 'Formal',
-    friendly: 'Friendly',
-    concise: 'Concise',
+  const modeLabels: Record<Mode, string> = {
+    fast: 'Fast',
+    thinking: 'Thinking',
   };
 
   return (
@@ -119,7 +119,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 <span>File</span>
               </button>
 
-              {/* Web Search Toggle */}
+              {/* Web Search Toggle (masqué : aucun tool réel — voir flags.ts) */}
+              {SHOW_WEBSEARCH && (
               <button
                 onClick={onToggleWeb}
                 className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
@@ -136,6 +137,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                   <Check className="w-4 h-4 stroke-[2.6]" style={{ color: 'var(--accent)' }} />
                 )}
               </button>
+              )}
 
               {/* Tone Option */}
               <button
@@ -144,9 +146,9 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 style={{ color: 'var(--text-1)' }}
               >
                 <Sliders className="w-4 h-4 stroke-[2]" style={{ color: 'var(--text-2)' }} />
-                <span className="flex-1">Tone</span>
+                <span className="flex-1">Mode</span>
                 <span className="text-[11.5px] font-semibold mr-1" style={{ color: 'var(--text-3)' }}>
-                  {toneLabels[tone]}
+                  {modeLabels[mode]}
                 </span>
                 <ChevronDown
                   className={`w-3.5 h-3.5 transition-transform duration-200 stroke-[2.4] ${
@@ -164,21 +166,21 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                   exit={{ opacity: 0, height: 0 }}
                   className="pl-7 pr-2 py-1 flex flex-col gap-1 overflow-hidden"
                 >
-                  {(['formal', 'friendly', 'concise'] as ToneType[]).map((t) => (
+                  {(['fast', 'thinking'] as Mode[]).map((t) => (
                     <button
                       key={t}
                       onClick={() => {
-                        onChangeTone(t);
+                        onChangeMode(t);
                         setShowToneOptions(false);
                       }}
                       className="flex items-center justify-between py-2 px-2.5 rounded-[8px] text-[12.5px] font-medium transition-colors active:bg-black/5 cursor-pointer"
                       style={{
-                        backgroundColor: tone === t ? 'var(--hover)' : 'transparent',
+                        backgroundColor: mode === t ? 'var(--hover)' : 'transparent',
                         color: 'var(--text-1)',
                       }}
                     >
-                      <span>{toneLabels[t]}</span>
-                      {tone === t && (
+                      <span>{modeLabels[t]}</span>
+                      {mode === t && (
                         <Check className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: 'var(--accent)' }} />
                       )}
                     </button>

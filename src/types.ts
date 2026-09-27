@@ -3,6 +3,10 @@
 
 export type ToneType = 'formal' | 'friendly' | 'concise';
 
+// Mode agent réel (phase 6) — remplace ToneType côté UI/store.
+// ToneType est conservé pour `Scenario.r` (seeds + démo ActionProofCard).
+export type Mode = 'fast' | 'thinking';
+
 export interface ActionProof {
   app: string;
   desc: string;
@@ -30,6 +34,7 @@ export interface ChatMessage {
   sender: 'user' | 'ai';
   text?: string;
   rawText?: string;
+  thinking?: string;
   scId?: string;
   attachments?: AttachmentState;
   isStreaming?: boolean;

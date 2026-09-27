@@ -1,27 +1,26 @@
-// Store central — état complet + actions (phase 3).
+// Store central — état complet + actions (phase 3, agent réel phase 6).
 // Remplace les useState du App.tsx phase 2.
-// Sync conversations (fix vs ref) : la 1re send dans un chat vide crée la
+// Sync conversations : la 1re send dans un chat vide crée la
 // conversation, et chaque envoi est resynchronisé dedans.
+// Phase 6 : streaming réel Ollama Cloud (`src/lib/ollama.ts`), `mockAgent`
+// supprimé (pas de fallback). `ToneType` UI remplacé par `Mode`.
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { INITIAL_CONVERSATIONS } from "@/constants/scenarios";
 import {
-  STREAM_DELAY_MS,
-  TOKEN_INTERVAL_REGEN,
-  TOKEN_INTERVAL_SEND,
-  buildResponse,
-  getFollowUps,
-  match,
-  stopStream,
-  streamResponse,
-  tokenize,
-} from "@/lib/mockAgent";
+  GENERIC_SCENARIO,
+  INITIAL_CONVERSATIONS,
+  SCENARIOS,
+} from "@/constants/scenarios";
+import {
+  streamOllamaResponse,
+  type OllamaStreamHandle,
+} from "@/lib/ollama";
 import type {
   AttachmentState,
   ChatMessage,
   ConversationHistoryItem,
   DevicePerms,
-  ToneType,
+  Mode,
 } from "@/types";
 
 export type Theme = "light" | "dark";
@@ -37,19 +36,30 @@ const now = (): string =>
 
 let toastTimer: number | null = null;
 let permTimer: number | null = null;
-let streamDelayTimer: number | null = null;
+let realStream: OllamaStreamHandle | null = null;
 
 const finalizeMessage = (list: ChatMessage[], p: PendingStream): ChatMessage[] =>
   list.map((m) =>
     m.id === p.aiMsgId ? { ...m, rawText: p.target, isStreaming: false } : m
   );
 
-const clearStreamTimers = (): void => {
-  stopStream();
-  if (streamDelayTimer !== null) {
-    window.clearTimeout(streamDelayTimer);
-    streamDelayTimer = null;
+const cancelRealStream = (): void => {
+  if (realStream !== null) {
+    realStream.cancel();
+    realStream = null;
   }
+};
+
+const getFollowUps = (scId?: string): string[] =>
+  (scId && SCENARIOS[scId]?.fu) || GENERIC_SCENARIO.fu;
+
+const lastUserText = (list: ChatMessage[]): string => {
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i].sender === "user" && list[i].text?.trim()) {
+      return list[i].text as string;
+    }
+  }
+  return "";
 };
 
 interface ChatState {
@@ -61,7 +71,7 @@ interface ChatState {
   lastScId: string | undefined;
   input: string;
   attachments: AttachmentState;
-  tone: ToneType;
+  mode: Mode;
   webEnabled: boolean;
   isStreaming: boolean;
   pending: PendingStream | null;
@@ -80,7 +90,7 @@ interface ChatState {
   attach: (type: "photo" | "file") => void;
   removeAttachment: (type: "photo" | "file") => void;
   toggleWeb: () => void;
-  setTone: (tone: ToneType) => void;
+  setMode: (mode: Mode) => void;
   toggleKebab: () => void;
   closeKebab: () => void;
   openSheet: () => void;
@@ -131,7 +141,7 @@ export const useChatStore = create<ChatState>()(
       lastScId: undefined,
       input: "",
       attachments: { photo: false, file: false },
-      tone: "formal",
+      mode: "fast",
       webEnabled: false,
       isStreaming: false,
       pending: null,
@@ -166,9 +176,9 @@ export const useChatStore = create<ChatState>()(
     get().showToast(next ? "Web search on" : "Web search off");
   },
 
-  setTone: (tone) => {
-    set({ tone });
-    get().showToast(`Tone set to ${tone}`);
+  setMode: (mode) => {
+    set({ mode });
+    get().showToast(`Mode set to ${mode}`);
   },
 
   toggleKebab: () => set((s) => ({ kebabOpen: !s.kebabOpen })),
@@ -228,14 +238,12 @@ export const useChatStore = create<ChatState>()(
       attachments: curAtt.photo || curAtt.file ? { ...curAtt } : undefined,
       timestamp: timeStr,
     };
-    const scId = match(trimmed);
     const aiMsgId = `a-${Date.now() + 1}`;
-    const target = buildResponse(scId ?? undefined, trimmed, s.tone, curAtt);
     const placeholder: ChatMessage = {
       id: aiMsgId,
       sender: "ai",
       rawText: "",
-      scId: scId ?? undefined,
+      thinking: "",
       isStreaming: true,
       timestamp: timeStr,
     };
@@ -261,7 +269,9 @@ export const useChatStore = create<ChatState>()(
       ];
     }
 
-    const pending: PendingStream = { aiMsgId, target, convId };
+    const pending: PendingStream = { aiMsgId, target: "", convId };
+    const mode = s.mode;
+    const history = baseMessages;
 
     set({
       input: "",
@@ -270,37 +280,69 @@ export const useChatStore = create<ChatState>()(
       messages: nextMessages,
       conversations: nextConvs,
       activeConvId: convId,
-      lastScId: scId ?? undefined,
+      lastScId: undefined,
       isStreaming: true,
       pending,
     });
 
-    if (streamDelayTimer !== null) window.clearTimeout(streamDelayTimer);
-    streamDelayTimer = window.setTimeout(() => {
-      streamResponse({
-        tokens: tokenize(target),
-        intervalMs: TOKEN_INTERVAL_SEND,
-        onToken: (buffer) =>
-          set((st) => ({
-            messages: st.messages.map((m) =>
-              m.id === aiMsgId ? { ...m, rawText: buffer, isStreaming: true } : m
-            ),
-          })),
-        onDone: () =>
-          set((st) => ({
-            isStreaming: false,
-            pending: null,
-            messages: st.messages.map((m) =>
-              m.id === aiMsgId ? { ...m, rawText: target, isStreaming: false } : m
-            ),
-            conversations: st.conversations.map((c) =>
-              c.id === convId
-                ? { ...c, messages: finalizeMessage(c.messages, pending) }
-                : c
-            ),
-          })),
-      });
-    }, STREAM_DELAY_MS);
+    cancelRealStream();
+    realStream = streamOllamaResponse({
+      prompt: trimmed,
+      mode,
+      history,
+      attachments: curAtt,
+      onToken: (buffer) =>
+        set((st) => ({
+          messages: st.messages.map((m) =>
+            m.id === aiMsgId ? { ...m, rawText: buffer, isStreaming: true } : m
+          ),
+          pending:
+            st.pending && st.pending.aiMsgId === aiMsgId
+              ? { ...st.pending, target: buffer }
+              : st.pending,
+        })),
+      onThinking: (thinking) =>
+        set((st) => ({
+          messages: st.messages.map((m) =>
+            m.id === aiMsgId ? { ...m, thinking } : m
+          ),
+        })),
+      onDone: (finalText, thinking) => {
+        realStream = null;
+        const done = finalText.trim()
+          ? finalText
+          : "I didn't get a response — please try again.";
+        const fin: PendingStream = { aiMsgId, target: done, convId };
+        set((st) => ({
+          isStreaming: false,
+          pending: null,
+          messages: st.messages.map((m) =>
+            m.id === aiMsgId
+              ? { ...m, rawText: done, thinking, isStreaming: false }
+              : m
+          ),
+          conversations: st.conversations.map((c) =>
+            c.id === convId ? { ...c, messages: finalizeMessage(c.messages, fin) } : c
+          ),
+        }));
+      },
+      onError: (message) => {
+        realStream = null;
+        const errText = `LLM unavailable: ${message}`;
+        const fin: PendingStream = { aiMsgId, target: errText, convId };
+        set((st) => ({
+          isStreaming: false,
+          pending: null,
+          messages: st.messages.map((m) =>
+            m.id === aiMsgId ? { ...m, rawText: errText, isStreaming: false } : m
+          ),
+          conversations: st.conversations.map((c) =>
+            c.id === convId ? { ...c, messages: finalizeMessage(c.messages, fin) } : c
+          ),
+        }));
+        get().showToast("LLM error — check OLLAMA_API_KEY");
+      },
+    });
   },
 
   regenerate: (aiMsgId) => {
@@ -309,48 +351,90 @@ export const useChatStore = create<ChatState>()(
     const msg = s.messages.find((m) => m.id === aiMsgId);
     if (!msg || msg.sender !== "ai") return;
 
-    clearStreamTimers();
-    const target = buildResponse(msg.scId, "", s.tone, s.attachments);
+    cancelRealStream();
+    const history = s.messages.filter((m) => m.id !== aiMsgId);
+    const prompt = lastUserText(history) || "Please answer again.";
     const convId = s.activeConvId ?? "";
-    const pending: PendingStream = { aiMsgId, target, convId };
+    const mode = s.mode;
+    const pending: PendingStream = { aiMsgId, target: "", convId };
 
     set({
       isStreaming: true,
       pending,
       messages: s.messages.map((m) =>
-        m.id === aiMsgId ? { ...m, rawText: "", isStreaming: true } : m
+        m.id === aiMsgId ? { ...m, rawText: "", thinking: "", isStreaming: true } : m
       ),
     });
 
-    streamResponse({
-      tokens: tokenize(target),
-      intervalMs: TOKEN_INTERVAL_REGEN,
+    realStream = streamOllamaResponse({
+      prompt,
+      mode,
+      history,
+      attachments: s.attachments,
       onToken: (buffer) =>
         set((st) => ({
           messages: st.messages.map((m) =>
             m.id === aiMsgId ? { ...m, rawText: buffer, isStreaming: true } : m
           ),
+          pending:
+            st.pending && st.pending.aiMsgId === aiMsgId
+              ? { ...st.pending, target: buffer }
+              : st.pending,
         })),
-      onDone: () =>
+      onThinking: (thinking) =>
+        set((st) => ({
+          messages: st.messages.map((m) =>
+            m.id === aiMsgId ? { ...m, thinking } : m
+          ),
+        })),
+      onDone: (finalText, thinking) => {
+        realStream = null;
+        const done = finalText.trim()
+          ? finalText
+          : "I didn't get a response — please try again.";
+        const fin: PendingStream = { aiMsgId, target: done, convId };
         set((st) => ({
           isStreaming: false,
           pending: null,
           messages: st.messages.map((m) =>
-            m.id === aiMsgId ? { ...m, rawText: target, isStreaming: false } : m
+            m.id === aiMsgId
+              ? { ...m, rawText: done, thinking, isStreaming: false }
+              : m
           ),
           conversations: convId
             ? st.conversations.map((c) =>
                 c.id === convId
-                  ? { ...c, messages: finalizeMessage(c.messages, pending) }
+                  ? { ...c, messages: finalizeMessage(c.messages, fin) }
                   : c
               )
             : st.conversations,
-        })),
+        }));
+      },
+      onError: (message) => {
+        realStream = null;
+        const errText = `LLM unavailable: ${message}`;
+        const fin: PendingStream = { aiMsgId, target: errText, convId };
+        set((st) => ({
+          isStreaming: false,
+          pending: null,
+          messages: st.messages.map((m) =>
+            m.id === aiMsgId ? { ...m, rawText: errText, isStreaming: false } : m
+          ),
+          conversations: convId
+            ? st.conversations.map((c) =>
+                c.id === convId
+                  ? { ...c, messages: finalizeMessage(c.messages, fin) }
+                  : c
+              )
+            : st.conversations,
+        }));
+        get().showToast("LLM error — check OLLAMA_API_KEY");
+      },
     });
   },
 
   selectConversation: (conv) => {
-    clearStreamTimers();
+    cancelRealStream();
     const s = get();
     const fin = withPendingFinalized(s);
     const convs = fin.conversations ?? s.conversations;
@@ -367,7 +451,7 @@ export const useChatStore = create<ChatState>()(
   },
 
   newChat: () => {
-    clearStreamTimers();
+    cancelRealStream();
     const fin = withPendingFinalized(get());
     set({
       ...fin,
@@ -388,11 +472,11 @@ export const useChatStore = create<ChatState>()(
     })),
 
   deleteConversation: (convId) => {
-    clearStreamTimers();
-    try { navigator.vibrate?.(40); } catch {}
+    cancelRealStream();
     const s = get();
     const fin = withPendingFinalized(s);
     const wasActive = s.activeConvId === convId;
+    try { navigator.vibrate?.(40); } catch {}
     set({
       ...fin,
       conversations: (fin.conversations ?? s.conversations).filter(
@@ -410,7 +494,7 @@ export const useChatStore = create<ChatState>()(
         activeConvId: s.activeConvId,
         theme: s.theme,
         perms: s.perms,
-        tone: s.tone,
+        mode: s.mode,
         webEnabled: s.webEnabled,
       }),
       onRehydrateStorage: () => (state) => {

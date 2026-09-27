@@ -22,7 +22,7 @@ function App() {
   const activeConvId = useChatStore((s) => s.activeConvId);
   const input = useChatStore((s) => s.input);
   const attachments = useChatStore((s) => s.attachments);
-  const tone = useChatStore((s) => s.tone);
+  const mode = useChatStore((s) => s.mode);
   const webEnabled = useChatStore((s) => s.webEnabled);
   const kebabOpen = useChatStore((s) => s.kebabOpen);
   const sheetOpen = useChatStore((s) => s.sheetOpen);
@@ -38,7 +38,7 @@ function App() {
   const attach = useChatStore((s) => s.attach);
   const removeAttachment = useChatStore((s) => s.removeAttachment);
   const toggleWeb = useChatStore((s) => s.toggleWeb);
-  const setTone = useChatStore((s) => s.setTone);
+  const setMode = useChatStore((s) => s.setMode);
   const toggleTheme = useChatStore((s) => s.toggleTheme);
   const toggleKebab = useChatStore((s) => s.toggleKebab);
   const closeKebab = useChatStore((s) => s.closeKebab);
@@ -157,7 +157,6 @@ function App() {
                   key={m.id}
                   message={m}
                   webEnabled={webEnabled}
-                  tone={tone}
                   onToast={showToast}
                   onOpenFollowUp={openFollowUp}
                   onRegenerate={regenerate}
@@ -228,8 +227,8 @@ function App() {
         }}
         webEnabled={webEnabled}
         onToggleWeb={toggleWeb}
-        tone={tone}
-        onChangeTone={setTone}
+        mode={mode}
+        onChangeMode={setMode}
       />
 
       <KebabMenu

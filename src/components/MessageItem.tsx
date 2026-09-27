@@ -13,7 +13,8 @@ import {
   Loader2,
 } from '@/lib/icons';
 import { motion } from 'motion/react';
-import type { ChatMessage, Scenario, ToneType } from '@/types';
+import { SHOW_WEBSEARCH } from '@/lib/flags';
+import type { ChatMessage, Scenario } from '@/types';
 import { SCENARIOS, GENERIC_SCENARIO, getSourcesFor } from '@/constants/scenarios';
 import { IMG_DESK } from '@/constants/images';
 import { ActionProofCard } from './ActionProofCard';
@@ -21,7 +22,6 @@ import { ActionProofCard } from './ActionProofCard';
 interface MessageItemProps {
   message: ChatMessage;
   webEnabled?: boolean;
-  tone?: ToneType;
   onToast: (msg: string) => void;
   onOpenFollowUp: (scId?: string) => void;
   onRegenerate: (messageId: string) => void;
@@ -191,8 +191,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
 
-        {/* Web Search Sources */}
-        {webEnabled && (
+        {/* Web Search Sources (masqué : aucun tool réel — voir flags.ts) */}
+        {SHOW_WEBSEARCH && webEnabled && (
           <div
             className="flex items-center flex-wrap gap-1.5 text-[12px]"
             style={{ color: 'var(--text-2)' }}
@@ -220,8 +220,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
 
-        {/* Expandable Thought Block */}
-        {sc?.thought && (
+        {/* Expandable Thought Block (mock `sc.thought` ou reasoning réel `message.thinking`) */}
+        {(sc?.thought || message.thinking) && (
           <div>
             <button
               onClick={() => setThoughtOpen(!thoughtOpen)}
@@ -245,7 +245,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 className="text-[11.5px] italic pl-6 mt-1 overflow-hidden"
                 style={{ color: 'var(--text-3)' }}
               >
-                {sc.thought}
+                {message.thinking || sc?.thought}
               </motion.div>
             )}
           </div>
