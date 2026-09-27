@@ -8,6 +8,9 @@ interface DeviceAccessModalProps {
   onClose: () => void;
   perms: DevicePerms;
   onEnablePerm: (perm: keyof DevicePerms) => void;
+  onCaptureScreen: () => void;
+  screenshotPreview: string | null;
+  isCapturing: boolean;
   onContinue: () => void;
 }
 
@@ -16,6 +19,9 @@ export const DeviceAccessModal: React.FC<DeviceAccessModalProps> = ({
   onClose,
   perms,
   onEnablePerm,
+  onCaptureScreen,
+  screenshotPreview,
+  isCapturing,
   onContinue,
 }) => {
   const canContinue = perms.a11y && perms.capture;
@@ -145,14 +151,23 @@ export const DeviceAccessModal: React.FC<DeviceAccessModalProps> = ({
                     </span>
                     {!perms.capture && (
                       <button
-                        onClick={() => onEnablePerm('capture')}
-                        className="text-[12px] font-bold cursor-pointer min-h-[40px] active:opacity-70"
+                        onClick={onCaptureScreen}
+                        disabled={isCapturing}
+                        className="text-[12px] font-bold cursor-pointer min-h-[44px] active:opacity-70 disabled:opacity-50"
                         style={{ color: 'var(--accent)' }}
                       >
-                        Enable
+                        {isCapturing ? 'Capturing…' : 'Test capture'}
                       </button>
                     )}
                   </div>
+                  {screenshotPreview && (
+                    <img
+                      src={screenshotPreview}
+                      alt="Last screenshot preview"
+                      className="w-full rounded-[10px] border mt-2 block"
+                      style={{ borderColor: 'var(--card-border)' }}
+                    />
+                  )}
                 </div>
               </div>
             </div>

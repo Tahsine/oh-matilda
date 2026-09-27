@@ -15,6 +15,13 @@ import {
   streamOllamaResponse,
   type OllamaStreamHandle,
 } from "@/lib/ollama";
+import { requestAgentScreenshot } from "@/lib/agentBridge";
+import { isAccessibilityEnabled } from "@/lib/agentTools";
+import {
+  runAgentTask,
+  type AgentRunHandle,
+  type AgentStep,
+} from "@/lib/agentRunner";
 import type {
   AttachmentState,
   ChatMessage,
@@ -37,6 +44,18 @@ const now = (): string =>
 let toastTimer: number | null = null;
 let permTimer: number | null = null;
 let realStream: OllamaStreamHandle | null = null;
+let agentHandle: AgentRunHandle | null = null;
+
+export interface AgentRunState {
+  id: string;
+  prompt: string;
+  status: "running" | "done" | "error" | "cancelled";
+  steps: AgentStep[];
+  beforeShot: string | null;
+  afterShot: string | null;
+  summary: string;
+  error?: string;
+}
 
 const finalizeMessage = (list: ChatMessage[], p: PendingStream): ChatMessage[] =>
   list.map((m) =>
@@ -80,6 +99,9 @@ interface ChatState {
   voiceOpen: boolean;
   accessOpen: boolean;
   perms: DevicePerms;
+  screenshotPreview: string | null;
+  isCapturing: boolean;
+  agentRun: AgentRunState | null;
   kebabOpen: boolean;
   sheetOpen: boolean;
   listOpen: boolean;
@@ -105,6 +127,10 @@ interface ChatState {
   openFollowUp: (scId?: string) => void;
   closeFollowUp: () => void;
   enablePerm: (key: keyof DevicePerms) => void;
+  captureScreen: () => void;
+  startAgentTask: (prompt: string) => void;
+  cancelAgentTask: () => void;
+  dismissAgentRun: () => void;
   sendMessage: (text?: string, att?: AttachmentState) => void;
   regenerate: (aiMsgId: string) => void;
   selectConversation: (conv: ConversationHistoryItem) => void;
@@ -150,6 +176,9 @@ export const useChatStore = create<ChatState>()(
       voiceOpen: false,
       accessOpen: false,
       perms: { a11y: false, capture: false },
+      screenshotPreview: null,
+      isCapturing: false,
+      agentRun: null,
       kebabOpen: false,
       sheetOpen: false,
       listOpen: false,
@@ -190,7 +219,11 @@ export const useChatStore = create<ChatState>()(
   },
   openVoice: () => set({ voiceOpen: true }),
   closeVoice: () => set({ voiceOpen: false }),
-  openAccess: () => set({ accessOpen: true }),
+  openAccess: () =>
+    set((s) => ({
+      accessOpen: true,
+      perms: { ...s.perms, a11y: isAccessibilityEnabled() || s.perms.a11y },
+    })),
   closeAccess: () => set({ accessOpen: false }),
   continueAccess: () => {
     set({ accessOpen: false });
@@ -211,6 +244,114 @@ export const useChatStore = create<ChatState>()(
       set((s) => ({ perms: { ...s.perms, [key]: true } }));
       get().showToast(key === "a11y" ? "Accessibility granted" : "Screen capture granted");
     }, 550);
+  },
+
+  // POC phase 7 : vraie capture MediaProjection via AgentBridge natif.
+  // Le consentement système est demandé par Android à la 1re capture.
+  captureScreen: () => {
+    if (get().isCapturing) return;
+    set({ isCapturing: true });
+    void requestAgentScreenshot().then(
+      (dataUrl) => {
+        try { navigator.vibrate?.(20); } catch {}
+        set((s) => ({
+          perms: { ...s.perms, capture: true },
+          screenshotPreview: dataUrl,
+          isCapturing: false,
+        }));
+        get().showToast("Screenshot captured");
+      },
+      (e) => {
+        set({ isCapturing: false });
+        get().showToast(`Capture failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    );
+  },
+
+  startAgentTask: (prompt) => {
+    const s = get();
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+    if (s.agentRun?.status === "running") {
+      get().showToast("Agent task already running");
+      return;
+    }
+    if (agentHandle !== null) {
+      agentHandle.cancel();
+      agentHandle = null;
+    }
+    try { navigator.vibrate?.(25); } catch {}
+    const id = `run-${Date.now()}`;
+    const mode = s.mode;
+    set({
+      input: "",
+      attachments: { photo: false, file: false },
+      followUpOpen: false,
+      sheetOpen: false,
+      agentRun: {
+        id,
+        prompt: trimmed,
+        status: "running",
+        steps: [],
+        beforeShot: null,
+        afterShot: null,
+        summary: "",
+      },
+    });
+    // Screenshot avant (best effort, ne bloque pas la boucle).
+    void requestAgentScreenshot().then(
+      (shot) => {
+        if (get().agentRun?.id === id) {
+          set((st) => st.agentRun?.id === id
+            ? { agentRun: { ...st.agentRun, beforeShot: shot } }
+            : {});
+        }
+      },
+      () => {}
+    );
+    agentHandle = runAgentTask(trimmed, mode, {
+      onStep: (step) =>
+        set((st) => st.agentRun?.id === id
+          ? { agentRun: { ...st.agentRun, steps: [...st.agentRun.steps, step] } }
+          : {}),
+      onDone: (summary) => {
+        agentHandle = null;
+        const finish = (after: string | null): void => {
+          set((st) => st.agentRun?.id === id
+            ? { agentRun: { ...st.agentRun, status: "done", summary, afterShot: after } }
+            : {});
+          get().showToast("Agent task done");
+        };
+        void requestAgentScreenshot().then(finish, () => finish(null));
+      },
+      onError: (message) => {
+        agentHandle = null;
+        set((st) => st.agentRun?.id === id
+          ? { agentRun: { ...st.agentRun, status: "error", error: message } }
+          : {});
+        get().showToast("Agent task failed");
+      },
+    });
+  },
+
+  cancelAgentTask: () => {
+    if (agentHandle !== null) {
+      agentHandle.cancel();
+      agentHandle = null;
+    }
+    const s = get();
+    if (s.agentRun?.status === "running") {
+      set({
+        agentRun: { ...s.agentRun, status: "cancelled" },
+      });
+      get().showToast("Agent task stopped");
+    }
+  },
+
+  dismissAgentRun: () => {
+    if (get().agentRun?.status !== "running") {
+      set({ agentRun: null });
+    }
   },
 
   sendMessage: (text, att) => {

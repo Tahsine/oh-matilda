@@ -35,4 +35,7 @@ export {
   Lightbulb,
   Eye,
   ArrowDown,
+  Bot,
+  Square,
+  TriangleAlert,
 } from "lucide-react";

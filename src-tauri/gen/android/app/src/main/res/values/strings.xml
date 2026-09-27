@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">"oh-matilda"</string>
     <string name="main_activity_title">"oh-matilda"</string>
+    <string name="accessibility_service_description">"Oh-Matilda reads what's on screen and taps or swipes on your behalf, only after you confirm each task. You can stop it anytime."</string>
 </resources>

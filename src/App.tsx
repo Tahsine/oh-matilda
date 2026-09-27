@@ -11,7 +11,9 @@ import { FollowUpPanel } from "@/components/FollowUpPanel";
 import { VoiceOverlay } from "@/components/VoiceOverlay";
 import { DeviceAccessModal } from "@/components/DeviceAccessModal";
 import { ConversationList } from "@/components/ConversationList";
+import { AgentRunCard } from "@/components/AgentRunCard";
 import { ArrowDown } from "@/lib/icons";
+import { openAccessibilitySettings } from "@/lib/agentTools";
 import { useChatStore } from "@/store/chatStore";
 
 function App() {
@@ -31,6 +33,13 @@ function App() {
   const voiceOpen = useChatStore((s) => s.voiceOpen);
   const accessOpen = useChatStore((s) => s.accessOpen);
   const perms = useChatStore((s) => s.perms);
+  const screenshotPreview = useChatStore((s) => s.screenshotPreview);
+  const isCapturing = useChatStore((s) => s.isCapturing);
+  const captureScreen = useChatStore((s) => s.captureScreen);
+  const agentRun = useChatStore((s) => s.agentRun);
+  const startAgentTask = useChatStore((s) => s.startAgentTask);
+  const cancelAgentTask = useChatStore((s) => s.cancelAgentTask);
+  const dismissAgentRun = useChatStore((s) => s.dismissAgentRun);
   const listOpen = useChatStore((s) => s.listOpen);
 
   const showToast = useChatStore((s) => s.showToast);
@@ -68,6 +77,31 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // Ligne a11y : ouvre les vrais Réglages Android (l'activation se fait
+  // hors app, l'état est resynchronisé à l'ouverture + au retour focus).
+  const handleEnablePerm = (perm: "a11y" | "capture") => {
+    if (perm === "a11y") {
+      if (openAccessibilitySettings()) {
+        showToast("Enable Oh-Matilda, then come back");
+      } else {
+        showToast("Cannot open Settings");
+      }
+      return;
+    }
+    enablePerm(perm);
+  };
+
+  // Resync état service a11y au retour dans l'app (modal ouverte).
+  useEffect(() => {
+    const onVisible = () => {
+      if (!document.hidden && useChatStore.getState().accessOpen) {
+        useChatStore.getState().openAccess();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   // Hydratation persist : après reload, messages est vide mais activeConvId/conversations sont restaurés
   useEffect(() => {
@@ -118,7 +152,8 @@ function App() {
       prevLenRef.current = messages.length;
     };
     requestAnimationFrame(() => setTimeout(doScroll, 30));
-  }, [messages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, agentRun]);
 
   // Initial + resize : masquer FAB si pas d'overflow
   useEffect(() => {
@@ -162,6 +197,15 @@ function App() {
                   onRegenerate={regenerate}
                 />
               ))}
+            </div>
+          )}
+          {agentRun && (
+            <div className="pb-1">
+              <AgentRunCard
+                run={agentRun}
+                onCancel={cancelAgentTask}
+                onClose={dismissAgentRun}
+              />
             </div>
           )}
         </div>
@@ -229,6 +273,13 @@ function App() {
         onToggleWeb={toggleWeb}
         mode={mode}
         onChangeMode={setMode}
+        onRunAgent={() => {
+          if (!input.trim()) {
+            showToast("Type a task first");
+            return;
+          }
+          startAgentTask(input);
+        }}
       />
 
       <KebabMenu
@@ -245,7 +296,10 @@ function App() {
         isOpen={accessOpen}
         onClose={closeAccess}
         perms={perms}
-        onEnablePerm={enablePerm}
+        onEnablePerm={handleEnablePerm}
+        onCaptureScreen={captureScreen}
+        screenshotPreview={screenshotPreview}
+        isCapturing={isCapturing}
         onContinue={continueAccess}
       />
 

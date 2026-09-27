@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { ImageIcon, FileText, Globe, Sliders, Check, ChevronDown } from '@/lib/icons';
+import { ImageIcon, FileText, Globe, Sliders, Check, ChevronDown, Bot } from '@/lib/icons';
 import { motion, AnimatePresence } from 'motion/react';
 import { SHOW_WEBSEARCH } from '@/lib/flags';
 import type { Mode } from '@/types';
@@ -13,6 +13,7 @@ interface BottomSheetProps {
   onToggleWeb: () => void;
   mode: Mode;
   onChangeMode: (mode: Mode) => void;
+  onRunAgent: () => void;
 }
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({
@@ -24,6 +25,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   onToggleWeb,
   mode,
   onChangeMode,
+  onRunAgent,
 }) => {
   const [showToneOptions, setShowToneOptions] = useState<boolean>(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -117,6 +119,16 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
               >
                 <FileText className="w-4 h-4 stroke-[2]" style={{ color: 'var(--text-2)' }} />
                 <span>File</span>
+              </button>
+
+              {/* Agent task — exécute le texte du composer sur le téléphone */}
+              <button
+                onClick={onRunAgent}
+                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
+                style={{ color: 'var(--text-1)' }}
+              >
+                <Bot className="w-4 h-4 stroke-[2]" style={{ color: 'var(--accent)' }} />
+                <span>Agent task</span>
               </button>
 
               {/* Web Search Toggle (masqué : aucun tool réel — voir flags.ts) */}
