@@ -24,3 +24,10 @@ dist-ssr
 *.sw?
 research/
 docs/
+
+# Tauri Android generated project (regenerable : tauri android init + build)
+src-tauri/gen/
+
+# Build outputs (jamais commites)
+*.apk
+*.aab

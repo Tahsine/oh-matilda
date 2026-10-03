@@ -15,12 +15,14 @@ import {
   streamOllamaResponse,
   type OllamaStreamHandle,
 } from "@/lib/ollama";
-import { requestAgentScreenshot } from "@/lib/agentBridge";
+import { notifyAgentRun, requestAgentScreenshot } from "@/lib/agentBridge";
 import { isAccessibilityEnabled } from "@/lib/agentTools";
 import {
   runAgentTask,
+  takeRunTrace,
   type AgentRunHandle,
   type AgentStep,
+  type RunTraceEvent,
 } from "@/lib/agentRunner";
 import type {
   AttachmentState,
@@ -49,12 +51,95 @@ let agentHandle: AgentRunHandle | null = null;
 export interface AgentRunState {
   id: string;
   prompt: string;
+  convId: string;
   status: "running" | "done" | "error" | "cancelled";
   steps: AgentStep[];
   beforeShot: string | null;
   afterShot: string | null;
   summary: string;
   error?: string;
+  /** Trace structurée : 1 event par appel tool. Non persistée en live. */
+  trace?: RunTraceEvent[];
+}
+
+/** Enregistrement permanent d'un run (lisible des mois après, sans images). */
+export interface RunRecord {
+  id: string;
+  convId: string;
+  prompt: string;
+  status: "done" | "error" | "cancelled";
+  summary: string;
+  error?: string;
+  steps: AgentStep[];
+  trace?: RunTraceEvent[];
+  startedAt: number;
+  finishedAt: number;
+}
+
+const MAX_RUN_HISTORY = 50;
+
+// Attache les 2 messages d'ouverture au bon fil (bulle user immédiate +
+// placeholder IA portant le runId : la carte vit sous ce message).
+function attachRunMessages(
+  conversations: ChatState["conversations"],
+  convId: string,
+  baseMessages: ChatMessage[],
+  runId: string,
+  userText: string
+): { conversations: ChatState["conversations"]; messages: ChatMessage[] } {
+  const timeStr = now();
+  const next: ChatMessage[] = [
+    { id: `u-${runId}`, sender: "user", text: userText, timestamp: timeStr, runId },
+    { id: `a-${runId}`, sender: "ai", rawText: "", timestamp: timeStr, runId, isStreaming: true },
+  ];
+  return {
+    conversations: conversations.map((c) =>
+      c.id === convId ? { ...c, messages: [...c.messages, ...next] } : c
+    ),
+    messages: [...baseMessages, ...next],
+  };
+}
+
+// Clôture d'un run : remplit le placeholder IA (jamais de doublon user).
+function closeRunMessages(
+  st: ChatState,
+  runId: string,
+  aiText: string
+): Partial<ChatState> {
+  const fill = (list: ChatMessage[]): ChatMessage[] =>
+    list.map((m) =>
+      m.id === `a-${runId}` ? { ...m, rawText: aiText, isStreaming: false } : m
+    );
+  return {
+    conversations: st.conversations.map((c) => ({ ...c, messages: fill(c.messages) })),
+    messages: fill(st.messages),
+  };
+}
+
+// Snapshot permanent d'un run terminé (steps + trace texte, sans images).
+function snapshotRun(
+  st: ChatState,
+  run: AgentRunState,
+  status: RunRecord["status"],
+  summary: string,
+  error: string | undefined,
+  startedAt: number
+): Partial<ChatState> {
+  const rec: RunRecord = {
+    id: run.id,
+    convId: run.convId,
+    prompt: run.prompt,
+    status,
+    summary,
+    error,
+    steps: run.steps,
+    trace: run.trace,
+    startedAt,
+    finishedAt: Date.now(),
+  };
+  return {
+    runHistory: [...(st.runHistory ?? []), rec].slice(-MAX_RUN_HISTORY),
+  };
 }
 
 const finalizeMessage = (list: ChatMessage[], p: PendingStream): ChatMessage[] =>
@@ -92,6 +177,8 @@ interface ChatState {
   attachments: AttachmentState;
   mode: Mode;
   webEnabled: boolean;
+  /** Android-use strict : armé → tout send part en run sur l'appareil. */
+  agentArmed: boolean;
   isStreaming: boolean;
   pending: PendingStream | null;
   followUpOpen: boolean;
@@ -102,6 +189,8 @@ interface ChatState {
   screenshotPreview: string | null;
   isCapturing: boolean;
   agentRun: AgentRunState | null;
+  /** Historique permanent des runs (persisté, relu sous les messages IA). */
+  runHistory: RunRecord[];
   kebabOpen: boolean;
   sheetOpen: boolean;
   listOpen: boolean;
@@ -113,6 +202,7 @@ interface ChatState {
   removeAttachment: (type: "photo" | "file") => void;
   toggleWeb: () => void;
   setMode: (mode: Mode) => void;
+  toggleAgentArmed: () => void;
   toggleKebab: () => void;
   closeKebab: () => void;
   openSheet: () => void;
@@ -130,7 +220,6 @@ interface ChatState {
   captureScreen: () => void;
   startAgentTask: (prompt: string) => void;
   cancelAgentTask: () => void;
-  dismissAgentRun: () => void;
   sendMessage: (text?: string, att?: AttachmentState) => void;
   regenerate: (aiMsgId: string) => void;
   selectConversation: (conv: ConversationHistoryItem) => void;
@@ -169,6 +258,7 @@ export const useChatStore = create<ChatState>()(
       attachments: { photo: false, file: false },
       mode: "fast",
       webEnabled: false,
+      agentArmed: false,
       isStreaming: false,
       pending: null,
       followUpOpen: false,
@@ -179,6 +269,7 @@ export const useChatStore = create<ChatState>()(
       screenshotPreview: null,
       isCapturing: false,
       agentRun: null,
+      runHistory: [],
       kebabOpen: false,
       sheetOpen: false,
       listOpen: false,
@@ -208,6 +299,13 @@ export const useChatStore = create<ChatState>()(
   setMode: (mode) => {
     set({ mode });
     get().showToast(`Mode set to ${mode}`);
+  },
+
+  toggleAgentArmed: () => {
+    const next = !get().agentArmed;
+    try { navigator.vibrate?.(20); } catch {}
+    set({ agentArmed: next });
+    get().showToast(next ? "Agent mode on — messages will run on your phone" : "Agent mode off");
   },
 
   toggleKebab: () => set((s) => ({ kebabOpen: !s.kebabOpen })),
@@ -276,21 +374,50 @@ export const useChatStore = create<ChatState>()(
       get().showToast("Agent task already running");
       return;
     }
+    // Pré-vol : sans service a11y, getUiTree/tap/input échoueraient en boucle.
+    // (Android désactive le service à chaque réinstall — le réactiver d'abord.)
+    if (!isAccessibilityEnabled()) {
+      get().showToast("Enable the accessibility service first (Device access)");
+      set((st) => ({ perms: { ...st.perms, a11y: false } }));
+      return;
+    }
     if (agentHandle !== null) {
       agentHandle.cancel();
       agentHandle = null;
     }
     try { navigator.vibrate?.(25); } catch {}
     const id = `run-${Date.now()}`;
+    const runStartedAt = Date.now();
     const mode = s.mode;
+    // Conversation liée dès le démarrage. Thread = conversation (mémoire
+    // inter-runs), runId éphémère généré dans le driver.
+    let convId = s.activeConvId;
+    let nextConvs = s.conversations;
+    if (!convId) {
+      convId = `c-${Date.now()}`;
+      const title = trimmed.length > 40 ? trimmed.slice(0, 40) + "…" : trimmed;
+      nextConvs = [
+        { id: convId, title, time: now(), fav: false, messages: [] },
+        ...s.conversations,
+      ];
+    }
+    const runConvId: string = convId;
+    // Bulle user immédiate + placeholder IA : la carte vit sous ce message.
+    const baseMessages = s.activeConvId === runConvId ? s.messages : [];
+    const opened = attachRunMessages(nextConvs, runConvId, baseMessages, id, trimmed);
     set({
       input: "",
       attachments: { photo: false, file: false },
       followUpOpen: false,
       sheetOpen: false,
+      listOpen: false,
+      conversations: opened.conversations,
+      activeConvId: runConvId,
+      messages: opened.messages,
       agentRun: {
         id,
         prompt: trimmed,
+        convId: runConvId,
         status: "running",
         steps: [],
         beforeShot: null,
@@ -298,17 +425,11 @@ export const useChatStore = create<ChatState>()(
         summary: "",
       },
     });
-    // Screenshot avant (best effort, ne bloque pas la boucle).
-    void requestAgentScreenshot().then(
-      (shot) => {
-        if (get().agentRun?.id === id) {
-          set((st) => st.agentRun?.id === id
-            ? { agentRun: { ...st.agentRun, beforeShot: shot } }
-            : {});
-        }
-      },
-      () => {}
-    );
+    // Preuves avant/après désactivées en v1 (spec §10) : la boucle agent
+    // n'appelle jamais la capture (boîte de consentement MediaProjection).
+    notifyAgentRun("running", trimmed);
+    // Thread LangGraph = conversation (mémoire inter-runs) : on passe
+    // runConvId, le runId éphémère est généré dans le driver.
     agentHandle = runAgentTask(trimmed, mode, {
       onStep: (step) =>
         set((st) => st.agentRun?.id === id
@@ -316,22 +437,40 @@ export const useChatStore = create<ChatState>()(
           : {}),
       onDone: (summary) => {
         agentHandle = null;
-        const finish = (after: string | null): void => {
-          set((st) => st.agentRun?.id === id
-            ? { agentRun: { ...st.agentRun, status: "done", summary, afterShot: after } }
-            : {});
-          get().showToast("Agent task done");
-        };
-        void requestAgentScreenshot().then(finish, () => finish(null));
+        const trace = takeRunTrace();
+        set((st) => {
+          if (st.agentRun?.id !== id) return {};
+          const run = { ...st.agentRun, status: "done" as const, summary, trace };
+          return {
+            agentRun: run,
+            ...closeRunMessages(st, id, summary),
+            ...snapshotRun(st, run, "done", summary, undefined, runStartedAt),
+            // Retour au chat résultat : tiroir fermé. Le retour
+            // premier-plan natif est fait par bringAppFront (notif done).
+            listOpen: false,
+          };
+        });
+        get().showToast("Agent task done");
+        notifyAgentRun("done", summary);
       },
       onError: (message) => {
         agentHandle = null;
-        set((st) => st.agentRun?.id === id
-          ? { agentRun: { ...st.agentRun, status: "error", error: message } }
-          : {});
+        const trace = takeRunTrace();
+        set((st) => {
+          if (st.agentRun?.id !== id) return {};
+          const run = { ...st.agentRun, status: "error" as const, error: message, trace };
+          const aiText = `Agent task failed: ${message}`;
+          return {
+            agentRun: run,
+            ...closeRunMessages(st, id, aiText),
+            ...snapshotRun(st, run, "error", aiText, message, runStartedAt),
+            listOpen: false,
+          };
+        });
         get().showToast("Agent task failed");
+        notifyAgentRun("error", message);
       },
-    });
+    }, runConvId);
   },
 
   cancelAgentTask: () => {
@@ -341,21 +480,29 @@ export const useChatStore = create<ChatState>()(
     }
     const s = get();
     if (s.agentRun?.status === "running") {
+      const trace = takeRunTrace();
+      const run = { ...s.agentRun, status: "cancelled" as const, trace };
+      const aiText = "Agent task stopped.";
       set({
-        agentRun: { ...s.agentRun, status: "cancelled" },
+        agentRun: run,
+        ...closeRunMessages(s, s.agentRun.id, aiText),
+        ...snapshotRun(s, run, "cancelled", aiText, undefined, Date.now()),
+        listOpen: false,
       });
       get().showToast("Agent task stopped");
-    }
-  },
-
-  dismissAgentRun: () => {
-    if (get().agentRun?.status !== "running") {
-      set({ agentRun: null });
+      notifyAgentRun("cancelled", "Task stopped");
     }
   },
 
   sendMessage: (text, att) => {
     const s = get();
+    // Android-use strict : armé → tout send part en run sur l'appareil.
+    if (s.agentArmed) {
+      const armedText = (text ?? s.input).trim();
+      if (!armedText) return;
+      get().startAgentTask(armedText);
+      return;
+    }
     const trimmed = (text ?? s.input).trim();
     const curAtt = att ?? s.attachments;
     if (!trimmed && !curAtt.photo && !curAtt.file) return;
@@ -633,10 +780,12 @@ export const useChatStore = create<ChatState>()(
       partialize: (s) => ({
         conversations: s.conversations,
         activeConvId: s.activeConvId,
+        runHistory: s.runHistory.slice(-MAX_RUN_HISTORY),
         theme: s.theme,
         perms: s.perms,
         mode: s.mode,
         webEnabled: s.webEnabled,
+        agentArmed: s.agentArmed,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;

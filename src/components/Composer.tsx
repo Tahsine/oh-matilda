@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Plus, ArrowUp, AudioLines, FileText, X } from '@/lib/icons';
+import { Plus, ArrowUp, FileText, X } from '@/lib/icons';
 import { motion } from 'motion/react';
 import type { AttachmentState } from '@/types';
 import { IMG_DESK } from '@/constants/images';
@@ -12,6 +12,7 @@ interface ComposerProps {
   onOpenSheet: () => void;
   onSend: () => void;
   onStartVoice: () => void;
+  agentArmed: boolean;
 }
 
 export const Composer: React.FC<ComposerProps> = ({
@@ -21,7 +22,7 @@ export const Composer: React.FC<ComposerProps> = ({
   onRemoveAttachment,
   onOpenSheet,
   onSend,
-  onStartVoice,
+  agentArmed,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -53,9 +54,23 @@ export const Composer: React.FC<ComposerProps> = ({
         className="rounded-[22px] p-2.5 px-3.5 border shadow-xs transition-all"
         style={{
           backgroundColor: 'var(--composer-bg)',
-          borderColor: 'var(--composer-border)',
+          borderColor: agentArmed ? 'var(--accent)' : 'var(--composer-border)',
         }}
       >
+        {/* Badge mode agent strict */}
+        {agentArmed && (
+          <div className="flex items-center gap-1.5 pb-1.5">
+            <span
+              className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-[6px]"
+              style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              Agent
+            </span>
+            <span className="text-[10.5px] font-medium" style={{ color: 'var(--text-3)' }}>
+              Ce message agira sur ton téléphone
+            </span>
+          </div>
+        )}
         {/* Pending attachments preview */}
         {(attachments.photo || attachments.file) && (
           <div className="flex gap-2 flex-wrap mb-2">
@@ -122,7 +137,7 @@ export const Composer: React.FC<ComposerProps> = ({
           value={input}
           onChange={(e) => onChangeInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask Oh-Matilda anything"
+          placeholder={agentArmed ? "Describe a task for your phone" : "Ask Oh-Matilda anything"}
           className="w-full bg-transparent border-0 resize-none outline-none text-[13.5px] leading-[1.45] max-h-24 h-5 placeholder:text-[var(--text-3)]"
           style={{ color: 'var(--text-1)' }}
         />
@@ -142,25 +157,22 @@ export const Composer: React.FC<ComposerProps> = ({
             <Plus className="w-[17px] h-[17px] stroke-[2.3]" />
           </button>
 
+          {/* Send seul : le mode voix n'est pas implémenté (bouton masqué à vide). */}
+          {hasContent && (
           <button
             id="btn-send-or-voice"
-            onClick={hasContent ? onSend : onStartVoice}
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-90 cursor-pointer ${
-              hasContent ? 'shadow-md text-white' : ''
-            }`}
+            onClick={onSend}
+            className="w-11 h-11 rounded-full flex items-center justify-center transition-all active:scale-90 cursor-pointer shadow-md text-white"
             style={{
-              backgroundColor: hasContent ? 'var(--accent)' : 'transparent',
-              color: hasContent ? '#ffffff' : 'var(--text-2)',
-              boxShadow: hasContent ? '0 3px 10px var(--accent-soft)' : 'none',
+              backgroundColor: 'var(--accent)',
+              color: '#ffffff',
+              boxShadow: '0 3px 10px var(--accent-soft)',
             }}
-            aria-label={hasContent ? 'Send' : 'Voice mode'}
+            aria-label="Send"
           >
-            {hasContent ? (
-              <ArrowUp className="w-4 h-4 stroke-[2.4]" />
-            ) : (
-              <AudioLines className="w-4 h-4 stroke-[2.2]" />
-            )}
+            <ArrowUp className="w-4 h-4 stroke-[2.4]" />
           </button>
+          )}
         </div>
       </div>
 

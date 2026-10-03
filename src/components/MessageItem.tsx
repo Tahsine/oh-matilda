@@ -9,12 +9,12 @@ import {
   ThumbsUp,
   ThumbsDown,
   RotateCw,
-  CornerDownLeft,
   Loader2,
 } from '@/lib/icons';
 import { motion } from 'motion/react';
 import { SHOW_WEBSEARCH } from '@/lib/flags';
 import type { ChatMessage, Scenario } from '@/types';
+import { AgentRunCard, type RunDisplay } from './AgentRunCard';
 import { SCENARIOS, GENERIC_SCENARIO, getSourcesFor } from '@/constants/scenarios';
 import { IMG_DESK } from '@/constants/images';
 import { ActionProofCard } from './ActionProofCard';
@@ -25,14 +25,18 @@ interface MessageItemProps {
   onToast: (msg: string) => void;
   onOpenFollowUp: (scId?: string) => void;
   onRegenerate: (messageId: string) => void;
+  /** Run lié (live ou archive) : carte sous la réponse IA. */
+  run?: RunDisplay | null;
+  onCancelRun?: () => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
   message,
   webEnabled = false,
   onToast,
-  onOpenFollowUp,
   onRegenerate,
+  run,
+  onCancelRun,
 }) => {
   const [thoughtOpen, setThoughtOpen] = useState<boolean>(false);
   const [liked, setLiked] = useState<boolean>(!!message.liked);
@@ -276,7 +280,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       </div>
 
       {/* Main Text Content */}
-      <div className="content">
+      <div className="content break-words min-w-0" style={{ overflowWrap: 'anywhere' }}>
         {renderFormattedText(message.rawText)}
         {message.isStreaming && (
           <span
@@ -303,6 +307,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           <ActionProofCard action={sc.action} onToast={onToast} />
         )}
       </div>
+
+      {/* Carte run sous la réponse IA, avant la barre d'outils. */}
+      {message.sender === 'ai' && run && (
+        <AgentRunCard
+          run={run}
+          onCancel={run.status === 'running' ? onCancelRun : undefined}
+          defaultOpen={run.status === 'running'}
+        />
+      )}
 
       {/* Actions Toolbar */}
       {!message.isStreaming && message.rawText && (
@@ -355,15 +368,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             <RotateCw className="w-3.5 h-3.5" />
           </button>
 
-          <button
-            onClick={() => onOpenFollowUp(message.scId)}
-            className="w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-black/5 active:scale-95 cursor-pointer"
-            style={{ color: 'var(--text-3)' }}
-            title="Suggest follow-ups"
-            aria-label="Suggest follow-ups"
-          >
-            <CornerDownLeft className="w-3.5 h-3.5" />
-          </button>
+          {/* Bouton follow-ups masqué : non implémenté. */}
+
         </div>
       )}
     </motion.div>

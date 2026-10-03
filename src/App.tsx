@@ -11,9 +11,9 @@ import { FollowUpPanel } from "@/components/FollowUpPanel";
 import { VoiceOverlay } from "@/components/VoiceOverlay";
 import { DeviceAccessModal } from "@/components/DeviceAccessModal";
 import { ConversationList } from "@/components/ConversationList";
-import { AgentRunCard } from "@/components/AgentRunCard";
 import { ArrowDown } from "@/lib/icons";
 import { openAccessibilitySettings } from "@/lib/agentTools";
+import { onAgentStopRequest } from "@/lib/agentBridge";
 import { useChatStore } from "@/store/chatStore";
 
 function App() {
@@ -37,9 +37,10 @@ function App() {
   const isCapturing = useChatStore((s) => s.isCapturing);
   const captureScreen = useChatStore((s) => s.captureScreen);
   const agentRun = useChatStore((s) => s.agentRun);
-  const startAgentTask = useChatStore((s) => s.startAgentTask);
+  const runHistory = useChatStore((s) => s.runHistory ?? []);
   const cancelAgentTask = useChatStore((s) => s.cancelAgentTask);
-  const dismissAgentRun = useChatStore((s) => s.dismissAgentRun);
+  const agentArmed = useChatStore((s) => s.agentArmed);
+  const toggleAgentArmed = useChatStore((s) => s.toggleAgentArmed);
   const listOpen = useChatStore((s) => s.listOpen);
 
   const showToast = useChatStore((s) => s.showToast);
@@ -91,6 +92,13 @@ function App() {
     }
     enablePerm(perm);
   };
+
+  // Stop notification → kill-switch (même app backgroundée).
+  useEffect(() => {
+    onAgentStopRequest(() => {
+      useChatStore.getState().cancelAgentTask();
+    });
+  }, []);
 
   // Resync état service a11y au retour dans l'app (modal ouverte).
   useEffect(() => {
@@ -175,7 +183,7 @@ function App() {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="absolute inset-0 overflow-y-auto overscroll-contain px-2.5 pb-1"
+          className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 pb-1"
         >
           {messages.length === 0 ? (
             <HomeState onSelectPrompt={(p) => sendMessage(p)} />
@@ -187,25 +195,26 @@ function App() {
               >
                 {activeConv ? `${activeConv.title} · ${activeConv.time}` : "New chat"}
               </div>
-              {messages.map((m) => (
-                <MessageItem
-                  key={m.id}
-                  message={m}
-                  webEnabled={webEnabled}
-                  onToast={showToast}
-                  onOpenFollowUp={openFollowUp}
-                  onRegenerate={regenerate}
-                />
-              ))}
-            </div>
-          )}
-          {agentRun && (
-            <div className="pb-1">
-              <AgentRunCard
-                run={agentRun}
-                onCancel={cancelAgentTask}
-                onClose={dismissAgentRun}
-              />
+              {messages.map((m) => {
+                // Carte run sous le message IA : live si le run tourne,
+                // sinon archive permanente (visible des mois après).
+                const live = agentRun && agentRun.id === m.runId ? agentRun : null;
+                const archived = !live && m.runId
+                  ? runHistory.find((r) => r.id === m.runId) ?? null
+                  : null;
+                return (
+                  <MessageItem
+                    key={m.id}
+                    message={m}
+                    webEnabled={webEnabled}
+                    onToast={showToast}
+                    onOpenFollowUp={openFollowUp}
+                    onRegenerate={regenerate}
+                    run={live ?? archived}
+                    onCancelRun={cancelAgentTask}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -247,6 +256,7 @@ function App() {
         onOpenSheet={openSheet}
         onSend={() => sendMessage()}
         onStartVoice={openVoice}
+        agentArmed={agentArmed}
       />
 
       <FollowUpPanel
@@ -273,12 +283,10 @@ function App() {
         onToggleWeb={toggleWeb}
         mode={mode}
         onChangeMode={setMode}
-        onRunAgent={() => {
-          if (!input.trim()) {
-            showToast("Type a task first");
-            return;
-          }
-          startAgentTask(input);
+        agentArmed={agentArmed}
+        onToggleAgent={() => {
+          toggleAgentArmed();
+          closeSheet();
         }}
       />
 

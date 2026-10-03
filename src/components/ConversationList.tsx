@@ -145,6 +145,12 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
           onPointerDown={(e) => {
             e.stopPropagation();
           }}
+          onPointerUp={(e) => {
+            e.stopPropagation();
+          }}
+          onPointerMove={(e) => {
+            e.stopPropagation();
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onToggleFav();

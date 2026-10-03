@@ -41,6 +41,8 @@ export interface ChatMessage {
   timestamp: string;
   liked?: boolean;
   disliked?: boolean;
+  /** Run agent lié (carte sous le message IA, permanente). */
+  runId?: string;
 }
 
 export interface ConversationHistoryItem {

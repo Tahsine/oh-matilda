@@ -1,22 +1,37 @@
-import React from 'react';
-import { Bot, Check, Loader2, Square, TriangleAlert } from '@/lib/icons';
+import React, { useState } from 'react';
+import { Bot, Check, ChevronRight, Loader2, Square, TriangleAlert } from '@/lib/icons';
 import { motion } from 'motion/react';
-import type { AgentRunState } from '@/store/chatStore';
+import type { AgentStep, RunTraceEvent } from '@/lib/agentRunner';
 
-interface AgentRunCardProps {
-  run: AgentRunState;
-  onCancel: () => void;
-  onClose: () => void;
+/** Forme d'affichage : run live (AgentRunState) ou archive (RunRecord). */
+export interface RunDisplay {
+  id: string;
+  prompt: string;
+  status: 'running' | 'done' | 'error' | 'cancelled';
+  steps: AgentStep[];
+  trace?: RunTraceEvent[];
+  summary: string;
+  error?: string;
 }
 
-export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, onClose }) => {
+interface AgentRunCardProps {
+  run: RunDisplay;
+  onCancel?: () => void;
+  /** Historique : replié par défaut. Live : ouvert. */
+  defaultOpen?: boolean;
+}
+
+export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, defaultOpen = true }) => {
   const running = run.status === 'running';
+  // Trace repliable (pattern Thought) : la réponse reste TOUJOURS dehors.
+  const [traceOpen, setTraceOpen] = useState<boolean>(defaultOpen);
+  const hasTrace = run.steps.length > 0 || (run.trace && run.trace.length > 0);
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-3 p-3 rounded-[13px] border shadow-xs"
+      className="mt-2 p-3 rounded-[13px] border shadow-xs"
       style={{
         backgroundColor: 'var(--card-bg)',
         borderColor: 'var(--card-border)',
@@ -28,7 +43,7 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, onClo
       >
         <Bot className="w-4 h-4 shrink-0" style={{ color: 'var(--accent)' }} />
         <span className="flex-1 truncate">{run.prompt}</span>
-        {running ? (
+        {running && onCancel && (
           <button
             onClick={onCancel}
             className="w-11 h-11 -m-2 rounded-[10px] flex items-center justify-center transition-colors active:bg-black/5 cursor-pointer"
@@ -36,14 +51,6 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, onClo
             aria-label="Stop agent task"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
-          </button>
-        ) : (
-          <button
-            onClick={onClose}
-            className="text-[11px] font-bold px-2 min-h-[44px] active:opacity-70 cursor-pointer"
-            style={{ color: 'var(--text-3)' }}
-          >
-            Dismiss
           </button>
         )}
       </div>
@@ -62,67 +69,71 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, onClo
         </div>
       )}
 
-      {run.steps.length > 0 && (
-        <div className="mt-2 pl-6 flex flex-col gap-1 max-h-[132px] overflow-y-auto no-scrollbar">
-          {run.steps.map((st, i) => (
-            <div
-              key={`${run.id}-step-${i}`}
-              className="text-[11.5px] leading-snug"
-              style={{ color: 'var(--text-2)' }}
-            >
-              <span className="font-semibold" style={{ color: 'var(--text-1)' }}>
-                {i + 1}. {st.label}
-              </span>{' '}
-              <span className="opacity-80">{st.detail}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {hasTrace && (
+        <div className="mt-2 pl-6">
+          <button
+            onClick={() => setTraceOpen(!traceOpen)}
+            className="flex items-center gap-1.5 text-[11.5px] font-semibold py-0.5 px-1 rounded-md transition-colors active:bg-black/5 cursor-pointer"
+            style={{ color: 'var(--text-2)' }}
+            aria-label="Toggle run trace details"
+          >
+            <ChevronRight
+              className={`w-3 h-3 transition-transform duration-200 ${
+                traceOpen ? 'rotate-90' : ''
+              }`}
+            />
+            <span>Détails · {run.steps.length} étapes</span>
+          </button>
 
-      {(run.beforeShot || run.afterShot) && (
-        <div className="flex gap-2 mt-2.5">
-          {run.beforeShot && (
-            <div className="flex-1 flex flex-col gap-1">
-              <img
-                src={run.beforeShot}
-                alt="Before task"
-                className="w-full rounded-[10px] border block"
-                style={{ borderColor: 'var(--card-border)' }}
-              />
-              <span
-                className="text-[10px] font-bold text-center uppercase tracking-wider"
-                style={{ color: 'var(--text-3)' }}
-              >
-                Before
-              </span>
-            </div>
-          )}
-          {run.afterShot && (
-            <div className="flex-1 flex flex-col gap-1">
-              <img
-                src={run.afterShot}
-                alt="After task"
-                className="w-full rounded-[10px] border block"
-                style={{ borderColor: 'var(--card-border)' }}
-              />
-              <span
-                className="text-[10px] font-bold text-center uppercase tracking-wider"
-                style={{ color: 'var(--text-3)' }}
-              >
-                After
-              </span>
-            </div>
+          {traceOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              {run.steps.length > 0 && (
+                <div className="mt-1 flex flex-col gap-1 max-h-[132px] overflow-y-auto no-scrollbar">
+                  {run.steps.map((st, i) => (
+                    <div
+                      key={`${run.id}-step-${i}`}
+                      className="text-[11.5px] leading-snug break-words min-w-0"
+                      style={{ color: 'var(--text-2)', overflowWrap: 'anywhere' }}
+                    >
+                      <span className="font-semibold" style={{ color: 'var(--text-1)' }}>
+                        {i + 1}. {st.label}
+                      </span>{' '}
+                      <span className="opacity-80">{st.detail}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {run.trace && run.trace.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-0.5 max-h-[110px] overflow-y-auto no-scrollbar">
+                  {run.trace.map((ev) => (
+                    <div
+                      key={`${run.id}-trace-${ev.seq}`}
+                      className="text-[10.5px] leading-snug break-words min-w-0 font-mono"
+                      style={{ color: ev.ok ? 'var(--text-3)' : '#e5484d', overflowWrap: 'anywhere' }}
+                    >
+                      #{ev.seq} {ev.tool} {typeof ev.args === 'object' && ev.args !== null ? JSON.stringify(ev.args).slice(0, 90) : ''}{ev.error ? ` → ${ev.error.slice(0, 90)}` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
           )}
         </div>
       )}
 
       {run.status === 'done' && (
         <div
-          className="flex items-center gap-1.5 text-[11.5px] font-medium mt-2.5"
-          style={{ color: 'var(--text-2)' }}
+          className="flex items-start gap-1.5 text-[11.5px] font-medium mt-2.5 break-words min-w-0"
+          style={{ color: 'var(--text-2)', overflowWrap: 'anywhere' }}
         >
-          <Check className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: 'var(--accent)' }} />
-          <span>{run.summary}</span>
+          <Check className="w-3.5 h-3.5 shrink-0 mt-[1px] stroke-[2.5]" style={{ color: 'var(--accent)' }} />
+          <span className="min-w-0">{run.summary}</span>
         </div>
       )}
 
@@ -137,11 +148,11 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, onClo
 
       {run.status === 'error' && (
         <p
-          className="text-[11.5px] mt-2 flex items-center gap-1.5"
-          style={{ color: '#e5484d' }}
+          className="text-[11.5px] mt-2 flex items-start gap-1.5 break-words min-w-0"
+          style={{ color: '#e5484d', overflowWrap: 'anywhere' }}
         >
-          <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
-          <span>{run.error || 'Task failed.'}</span>
+          <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-[1px]" />
+          <span className="min-w-0">{run.error || 'Task failed.'}</span>
         </p>
       )}
     </motion.div>

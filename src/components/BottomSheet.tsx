@@ -13,7 +13,8 @@ interface BottomSheetProps {
   onToggleWeb: () => void;
   mode: Mode;
   onChangeMode: (mode: Mode) => void;
-  onRunAgent: () => void;
+  agentArmed: boolean;
+  onToggleAgent: () => void;
 }
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({
@@ -25,7 +26,8 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   onToggleWeb,
   mode,
   onChangeMode,
-  onRunAgent,
+  agentArmed,
+  onToggleAgent,
 }) => {
   const [showToneOptions, setShowToneOptions] = useState<boolean>(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -121,14 +123,19 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 <span>File</span>
               </button>
 
-              {/* Agent task — exécute le texte du composer sur le téléphone */}
+              {/* Agent task — mode strict : armé, tout send agit sur le téléphone */}
               <button
-                onClick={onRunAgent}
+                onClick={onToggleAgent}
                 className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
-                style={{ color: 'var(--text-1)' }}
+                style={{
+                  color: agentArmed ? 'var(--accent)' : 'var(--text-1)',
+                }}
               >
-                <Bot className="w-4 h-4 stroke-[2]" style={{ color: 'var(--accent)' }} />
-                <span>Agent task</span>
+                <Bot className="w-4 h-4 stroke-[2]" style={{ color: agentArmed ? 'var(--accent)' : 'var(--text-2)' }} />
+                <span className="flex-1">Agent task</span>
+                {agentArmed && (
+                  <Check className="w-4 h-4 stroke-[2.6]" style={{ color: 'var(--accent)' }} />
+                )}
               </button>
 
               {/* Web Search Toggle (masqué : aucun tool réel — voir flags.ts) */}
