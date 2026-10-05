@@ -25,8 +25,17 @@ dist-ssr
 research/
 docs/
 
-# Tauri Android generated project (regenerable : tauri android init + build)
-src-tauri/gen/
+# Tauri Android : sources natives versionnées (Kotlin écrit main, manifest,
+# res, gradle) — `android init` régénérerait un projet VIDE sans elles.
+# Seuls les outputs et le régénérable sont ignorés.
+/src-tauri/gen/schemas/
+/src-tauri/gen/android/build/
+/src-tauri/gen/android/app/build/
+/src-tauri/gen/android/.gradle/
+/src-tauri/gen/android/app/.cxx/
+/src-tauri/gen/android/app/.kotlin/
+/src-tauri/gen/android/app/src/main/java/com/ohmatilda/app/generated/
+/src-tauri/gen/android/local.properties
 
 # Build outputs (jamais commites)
 *.apk
