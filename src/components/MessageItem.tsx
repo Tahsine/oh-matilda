@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Globe,
   ChevronRight,
   Lightbulb,
-  Eye,
   FileText,
   Copy,
   ThumbsUp,
@@ -12,18 +10,13 @@ import {
   Loader2,
 } from '@/lib/icons';
 import { motion } from 'motion/react';
-import { SHOW_WEBSEARCH } from '@/lib/flags';
-import type { ChatMessage, Scenario } from '@/types';
+import type { ChatMessage } from '@/types';
 import { AgentRunCard, type RunDisplay } from './AgentRunCard';
-import { SCENARIOS, GENERIC_SCENARIO, getSourcesFor } from '@/constants/scenarios';
 import { IMG_DESK } from '@/constants/images';
-import { ActionProofCard } from './ActionProofCard';
 
 interface MessageItemProps {
   message: ChatMessage;
-  webEnabled?: boolean;
   onToast: (msg: string) => void;
-  onOpenFollowUp: (scId?: string) => void;
   onRegenerate: (messageId: string) => void;
   /** Run lié (live ou archive) : carte sous la réponse IA. */
   run?: RunDisplay | null;
@@ -32,7 +25,6 @@ interface MessageItemProps {
 
 export const MessageItem: React.FC<MessageItemProps> = ({
   message,
-  webEnabled = false,
   onToast,
   onRegenerate,
   run,
@@ -43,9 +35,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const [disliked, setDisliked] = useState<boolean>(!!message.disliked);
 
   const isAi = message.sender === 'ai';
-  const sc: Scenario | undefined = message.scId
-    ? SCENARIOS[message.scId] || GENERIC_SCENARIO
-    : undefined;
 
   // Format content with tags: **bold**, ==mark==, [[cite:N]]
   const renderFormattedText = (raw?: string) => {
@@ -70,24 +59,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         );
       }
       if (part.startsWith('[[cite:') && part.endsWith(']]')) {
-        const citeNum = part.replace('[[cite:', '').replace(']]', '');
-        return (
-          <button
-            key={index}
-            onClick={() => {
-              const docName = sc?.viewed || 'Reference';
-              onToast(`Source [${citeNum}]: ${docName} (simulated)`);
-            }}
-            className="inline-flex items-center justify-center w-[15px] h-[15px] rounded-full text-[9.5px] font-bold ml-1 align-[1px] transition-transform active:scale-90 cursor-pointer"
-            style={{
-              backgroundColor: 'var(--accent-soft)',
-              color: 'var(--accent)',
-            }}
-            title={`Citation ${citeNum}`}
-          >
-            {citeNum}
-          </button>
-        );
+        return <span key={index}>{part}</span>;
       }
       if (part === '\n') {
         return <br key={index} />;
@@ -172,8 +144,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   }
 
   // AI message rendering
-  const sources = getSourcesFor(message.scId);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 7 }}
@@ -195,41 +165,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           </div>
         )}
 
-        {/* Web Search Sources (masqué : aucun tool réel — voir flags.ts) */}
-        {SHOW_WEBSEARCH && webEnabled && (
-          <div
-            className="flex items-center flex-wrap gap-1.5 text-[12px]"
-            style={{ color: 'var(--text-2)' }}
-          >
-            <div className="flex items-center gap-1">
-              <Globe className="w-3.5 h-3.5" />
-              <span>Searched the web · 3 sources</span>
-            </div>
-            <div className="flex items-center gap-1 flex-wrap">
-              {sources.map((domain) => (
-                <button
-                  key={domain}
-                  onClick={() => onToast(`Opening ${domain} (simulated)`)}
-                  className="inline-flex items-center gap-1 border px-2 py-0.5 rounded-[8px] text-[10.5px] font-semibold transition-colors active:bg-black/5 cursor-pointer"
-                  style={{
-                    backgroundColor: 'var(--card-bg)',
-                    borderColor: 'var(--card-border)',
-                    color: 'var(--text-2)',
-                  }}
-                >
-                  {domain}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Expandable Thought Block (mock `sc.thought` ou reasoning réel `message.thinking`) */}
-        {(sc?.thought || message.thinking) && (
+        {/* Thought : reasoning réel uniquement. */}
+        {message.thinking && (
           <div>
             <button
               onClick={() => setThoughtOpen(!thoughtOpen)}
-              className="flex items-center gap-1.5 text-[12px] font-medium py-0.5 px-1 rounded-md transition-colors active:bg-black/5 cursor-pointer"
+              className="flex items-center gap-1.5 text-[11px] font-medium py-0.5 px-1 rounded-md transition-colors active:bg-[var(--hover)] cursor-pointer"
               style={{ color: 'var(--text-2)' }}
             >
               <ChevronRight
@@ -246,37 +187,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="text-[11.5px] italic pl-6 mt-1 overflow-hidden"
+                className="text-[11px] italic pl-6 mt-1 overflow-hidden"
                 style={{ color: 'var(--text-3)' }}
               >
-                {message.thinking || sc?.thought}
+                {message.thinking}
               </motion.div>
             )}
           </div>
         )}
 
-        {/* Viewed Document Citation */}
-        {sc?.viewed && (
-          <div
-            className="flex items-center gap-2 text-[12px]"
-            style={{ color: 'var(--text-2)' }}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span>Viewed</span>
-            <button
-              onClick={() => onToast(`Opening “${sc.viewed}” (simulated)`)}
-              className="inline-flex items-center gap-1.5 border px-2 py-0.5 rounded-[8px] text-[11px] font-semibold transition-colors active:bg-black/5 cursor-pointer"
-              style={{
-                backgroundColor: 'var(--card-bg)',
-                borderColor: 'var(--card-border)',
-                color: 'var(--text-1)',
-              }}
-            >
-              <FileText className="w-3 h-3" />
-              <span>{sc.viewed}</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Main Text Content */}
@@ -287,24 +206,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             className="inline-block w-[2px] h-[1em] ml-0.5 align-[-1px] caret-blink"
             style={{ backgroundColor: 'var(--accent)' }}
           />
-        )}
-
-        {/* Embedded Illustration */}
-        {sc?.img && !message.isStreaming && (
-          <motion.img
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            src={sc.img}
-            alt="Visual illustration"
-            className="w-full rounded-[14px] border mt-2.5 block"
-            style={{ borderColor: 'var(--card-border)' }}
-          />
-        )}
-
-        {/* Embedded Phone Action Proof Card */}
-        {sc?.action && !message.isStreaming && (
-          <ActionProofCard action={sc.action} onToast={onToast} />
         )}
       </div>
 
@@ -322,7 +223,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         <div className="flex items-center gap-0.5 mt-2.5">
           <button
             onClick={handleCopy}
-            className="w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-black/5 active:scale-95 cursor-pointer"
+            className="w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-[var(--hover)] active:scale-95 cursor-pointer"
             style={{ color: 'var(--text-3)' }}
             title="Copy"
             aria-label="Copy message"
@@ -332,7 +233,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
           <button
             onClick={handleLike}
-            className={`w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-black/5 active:scale-95 cursor-pointer ${
+            className={`w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-[var(--hover)] active:scale-95 cursor-pointer ${
               liked ? 'active' : ''
             }`}
             style={{
@@ -346,7 +247,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
           <button
             onClick={handleDislike}
-            className={`w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-black/5 active:scale-95 cursor-pointer ${
+            className={`w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-[var(--hover)] active:scale-95 cursor-pointer ${
               disliked ? 'active' : ''
             }`}
             style={{
@@ -360,7 +261,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
           <button
             onClick={() => onRegenerate(message.id)}
-            className="w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-black/5 active:scale-95 cursor-pointer"
+            className="w-11 h-11 rounded-[9px] flex items-center justify-center transition-colors active:bg-[var(--hover)] active:scale-95 cursor-pointer"
             style={{ color: 'var(--text-3)' }}
             title="Regenerate"
             aria-label="Regenerate response"

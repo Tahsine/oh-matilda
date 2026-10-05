@@ -18,11 +18,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       <button
         id="btn-sidebar"
         onClick={onOpenSidebar}
-        className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors active:bg-black/5 active:scale-95"
+        className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors active:bg-[var(--hover)] active:scale-95"
         style={{ color: 'var(--text-2)' }}
         aria-label="Open sidebar"
       >
-        <Menu className="w-[18px] h-[18px] stroke-[2.1]" />
+        <Menu className="w-5 h-5 stroke-[2]" />
       </button>
 
       <span
@@ -35,11 +35,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       <button
         id="btn-kebab"
         onClick={onToggleKebab}
-        className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors active:bg-black/5 active:scale-95"
+        className="w-11 h-11 rounded-xl flex items-center justify-center transition-colors active:bg-[var(--hover)] active:scale-95"
         style={{ color: 'var(--text-2)' }}
         aria-label="More options"
       >
-        <MoreVertical className="w-[17px] h-[17px]" />
+        <MoreVertical className="w-4 h-4" />
       </button>
     </header>
   );

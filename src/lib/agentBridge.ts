@@ -10,6 +10,7 @@ export interface AgentBridgeJS {
   openAccessibilitySettings?: () => boolean;
   call?: (reqId: string, method: string, argsJson: string) => void;
   agentRunNotify?: (status: string, text: string) => void;
+  setStatusBarDark?: (dark: boolean) => void;
 }
 
 declare global {
@@ -28,6 +29,15 @@ export type AgentRunNotifStatus = "running" | "done" | "error" | "cancelled";
 export function notifyAgentRun(status: AgentRunNotifStatus, text: string): void {
   try {
     window.AgentBridge?.agentRunNotify?.(status, text);
+  } catch {
+    // ignore (Web hors natif)
+  }
+}
+
+/** Icônes status bar : claires en dark, sombres en light. Best effort. */
+export function setStatusBarDark(dark: boolean): void {
+  try {
+    window.AgentBridge?.setStatusBarDark?.(dark);
   } catch {
     // ignore (Web hors natif)
   }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bot, Check, ChevronRight, Loader2, Square, TriangleAlert } from '@/lib/icons';
+import { Bot, ChevronRight, Loader2, Square } from '@/lib/icons';
 import { motion } from 'motion/react';
 import type { AgentStep, RunTraceEvent } from '@/lib/agentRunner';
 
@@ -31,10 +31,12 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, defau
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mt-2 p-3 rounded-[13px] border shadow-xs"
+      className="mt-2 p-3 border shadow-xs"
       style={{
         backgroundColor: 'var(--card-bg)',
         borderColor: 'var(--card-border)',
+        borderRadius: 'var(--radius-md)',
+        boxShadow: 'var(--shadow-sm)',
       }}
     >
       <div
@@ -46,7 +48,7 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, defau
         {running && onCancel && (
           <button
             onClick={onCancel}
-            className="w-11 h-11 -m-2 rounded-[10px] flex items-center justify-center transition-colors active:bg-black/5 cursor-pointer"
+            className="w-11 h-11 -m-2 rounded-[10px] flex items-center justify-center transition-colors active:bg-[var(--hover)] cursor-pointer"
             style={{ color: 'var(--text-1)' }}
             aria-label="Stop agent task"
           >
@@ -68,12 +70,11 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, defau
           </span>
         </div>
       )}
-
       {hasTrace && (
         <div className="mt-2 pl-6">
           <button
             onClick={() => setTraceOpen(!traceOpen)}
-            className="flex items-center gap-1.5 text-[11.5px] font-semibold py-0.5 px-1 rounded-md transition-colors active:bg-black/5 cursor-pointer"
+            className="flex items-center gap-1.5 text-[11px] font-semibold py-0.5 px-1 rounded-md transition-colors active:bg-[var(--hover)] cursor-pointer"
             style={{ color: 'var(--text-2)' }}
             aria-label="Toggle run trace details"
           >
@@ -97,7 +98,7 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, defau
                   {run.steps.map((st, i) => (
                     <div
                       key={`${run.id}-step-${i}`}
-                      className="text-[11.5px] leading-snug break-words min-w-0"
+                      className="text-[11px] leading-snug break-words min-w-0"
                       style={{ color: 'var(--text-2)', overflowWrap: 'anywhere' }}
                     >
                       <span className="font-semibold" style={{ color: 'var(--text-1)' }}>
@@ -115,7 +116,7 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, defau
                     <div
                       key={`${run.id}-trace-${ev.seq}`}
                       className="text-[10.5px] leading-snug break-words min-w-0 font-mono"
-                      style={{ color: ev.ok ? 'var(--text-3)' : '#e5484d', overflowWrap: 'anywhere' }}
+                      style={{ color: ev.ok ? 'var(--text-3)' : 'var(--danger)', overflowWrap: 'anywhere' }}
                     >
                       #{ev.seq} {ev.tool} {typeof ev.args === 'object' && ev.args !== null ? JSON.stringify(ev.args).slice(0, 90) : ''}{ev.error ? ` → ${ev.error.slice(0, 90)}` : ''}
                     </div>
@@ -125,35 +126,6 @@ export const AgentRunCard: React.FC<AgentRunCardProps> = ({ run, onCancel, defau
             </motion.div>
           )}
         </div>
-      )}
-
-      {run.status === 'done' && (
-        <div
-          className="flex items-start gap-1.5 text-[11.5px] font-medium mt-2.5 break-words min-w-0"
-          style={{ color: 'var(--text-2)', overflowWrap: 'anywhere' }}
-        >
-          <Check className="w-3.5 h-3.5 shrink-0 mt-[1px] stroke-[2.5]" style={{ color: 'var(--accent)' }} />
-          <span className="min-w-0">{run.summary}</span>
-        </div>
-      )}
-
-      {run.status === 'cancelled' && (
-        <p
-          className="text-[11.5px] italic mt-2"
-          style={{ color: 'var(--text-3)' }}
-        >
-          Task stopped — nothing further will run.
-        </p>
-      )}
-
-      {run.status === 'error' && (
-        <p
-          className="text-[11.5px] mt-2 flex items-start gap-1.5 break-words min-w-0"
-          style={{ color: '#e5484d', overflowWrap: 'anywhere' }}
-        >
-          <TriangleAlert className="w-3.5 h-3.5 shrink-0 mt-[1px]" />
-          <span className="min-w-0">{run.error || 'Task failed.'}</span>
-        </p>
       )}
     </motion.div>
   );

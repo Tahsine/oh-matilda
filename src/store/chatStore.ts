@@ -7,15 +7,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  GENERIC_SCENARIO,
   INITIAL_CONVERSATIONS,
-  SCENARIOS,
 } from "@/constants/scenarios";
 import {
   streamOllamaResponse,
   type OllamaStreamHandle,
 } from "@/lib/ollama";
 import { notifyAgentRun, requestAgentScreenshot } from "@/lib/agentBridge";
+import { friendlyLlmError } from "@/lib/ollamaKey";
 import { isAccessibilityEnabled } from "@/lib/agentTools";
 import {
   runAgentTask,
@@ -154,9 +153,6 @@ const cancelRealStream = (): void => {
   }
 };
 
-const getFollowUps = (scId?: string): string[] =>
-  (scId && SCENARIOS[scId]?.fu) || GENERIC_SCENARIO.fu;
-
 const lastUserText = (list: ChatMessage[]): string => {
   for (let i = list.length - 1; i >= 0; i -= 1) {
     if (list[i].sender === "user" && list[i].text?.trim()) {
@@ -176,14 +172,10 @@ interface ChatState {
   input: string;
   attachments: AttachmentState;
   mode: Mode;
-  webEnabled: boolean;
   /** Android-use strict : armé → tout send part en run sur l'appareil. */
   agentArmed: boolean;
   isStreaming: boolean;
   pending: PendingStream | null;
-  followUpOpen: boolean;
-  followUpQuestions: string[];
-  voiceOpen: boolean;
   accessOpen: boolean;
   perms: DevicePerms;
   screenshotPreview: string | null;
@@ -200,22 +192,17 @@ interface ChatState {
   setInput: (value: string) => void;
   attach: (type: "photo" | "file") => void;
   removeAttachment: (type: "photo" | "file") => void;
-  toggleWeb: () => void;
   setMode: (mode: Mode) => void;
   toggleAgentArmed: () => void;
   toggleKebab: () => void;
   closeKebab: () => void;
   openSheet: () => void;
   closeSheet: () => void;
-  openVoice: () => void;
-  closeVoice: () => void;
   openAccess: () => void;
   closeAccess: () => void;
   continueAccess: () => void;
   openList: () => void;
   closeList: () => void;
-  openFollowUp: (scId?: string) => void;
-  closeFollowUp: () => void;
   enablePerm: (key: keyof DevicePerms) => void;
   captureScreen: () => void;
   startAgentTask: (prompt: string) => void;
@@ -226,6 +213,7 @@ interface ChatState {
   newChat: () => void;
   toggleFav: (convId: string) => void;
   deleteConversation: (convId: string) => void;
+  deleteConversations: (convIds: string[]) => void;
 }
 
 type FinalizedSlice = Partial<
@@ -257,13 +245,9 @@ export const useChatStore = create<ChatState>()(
       input: "",
       attachments: { photo: false, file: false },
       mode: "fast",
-      webEnabled: false,
       agentArmed: false,
       isStreaming: false,
       pending: null,
-      followUpOpen: false,
-      followUpQuestions: [],
-      voiceOpen: false,
       accessOpen: false,
       perms: { a11y: false, capture: false },
       screenshotPreview: null,
@@ -290,12 +274,6 @@ export const useChatStore = create<ChatState>()(
   removeAttachment: (type) =>
     set((s) => ({ attachments: { ...s.attachments, [type]: false } })),
 
-  toggleWeb: () => {
-    const next = !get().webEnabled;
-    set({ webEnabled: next });
-    get().showToast(next ? "Web search on" : "Web search off");
-  },
-
   setMode: (mode) => {
     set({ mode });
     get().showToast(`Mode set to ${mode}`);
@@ -304,7 +282,9 @@ export const useChatStore = create<ChatState>()(
   toggleAgentArmed: () => {
     const next = !get().agentArmed;
     try { navigator.vibrate?.(20); } catch {}
-    set({ agentArmed: next });
+    // Armement ⇒ fast forcé (le mode agent ignore think ; thinking
+    // redevient choisissable au désarmement, toujours sur fast).
+    set({ agentArmed: next, ...(next ? { mode: "fast" as const } : {}) });
     get().showToast(next ? "Agent mode on — messages will run on your phone" : "Agent mode off");
   },
 
@@ -315,8 +295,6 @@ export const useChatStore = create<ChatState>()(
     try { navigator.vibrate?.(15); } catch {}
     set({ sheetOpen: false });
   },
-  openVoice: () => set({ voiceOpen: true }),
-  closeVoice: () => set({ voiceOpen: false }),
   openAccess: () =>
     set((s) => ({
       accessOpen: true,
@@ -330,9 +308,6 @@ export const useChatStore = create<ChatState>()(
   openList: () => set({ listOpen: true }),
   closeList: () => set({ listOpen: false }),
 
-  openFollowUp: (scId) =>
-    set({ followUpQuestions: getFollowUps(scId), followUpOpen: true }),
-  closeFollowUp: () => set({ followUpOpen: false }),
 
   enablePerm: (key) => {
     get().showToast("Opening Android settings (simulated)");
@@ -408,7 +383,6 @@ export const useChatStore = create<ChatState>()(
     set({
       input: "",
       attachments: { photo: false, file: false },
-      followUpOpen: false,
       sheetOpen: false,
       listOpen: false,
       conversations: opened.conversations,
@@ -564,7 +538,6 @@ export const useChatStore = create<ChatState>()(
     set({
       input: "",
       attachments: { photo: false, file: false },
-      followUpOpen: false,
       messages: nextMessages,
       conversations: nextConvs,
       activeConvId: convId,
@@ -616,7 +589,7 @@ export const useChatStore = create<ChatState>()(
       },
       onError: (message) => {
         realStream = null;
-        const errText = `LLM unavailable: ${message}`;
+        const errText = `LLM unavailable: ${friendlyLlmError(message)}`;
         const fin: PendingStream = { aiMsgId, target: errText, convId };
         set((st) => ({
           isStreaming: false,
@@ -700,7 +673,7 @@ export const useChatStore = create<ChatState>()(
       },
       onError: (message) => {
         realStream = null;
-        const errText = `LLM unavailable: ${message}`;
+        const errText = `LLM unavailable: ${friendlyLlmError(message)}`;
         const fin: PendingStream = { aiMsgId, target: errText, convId };
         set((st) => ({
           isStreaming: false,
@@ -774,21 +747,43 @@ export const useChatStore = create<ChatState>()(
     });
     get().showToast("Conversation deleted");
   },
+
+  deleteConversations: (convIds) => {
+    if (convIds.length === 0) return;
+    cancelRealStream();
+    const s = get();
+    const fin = withPendingFinalized(s);
+    const ids = new Set(convIds);
+    const wasActive = s.activeConvId !== null && ids.has(s.activeConvId);
+    try { navigator.vibrate?.(40); } catch {}
+    set({
+      ...fin,
+      conversations: (fin.conversations ?? s.conversations).filter(
+        (c) => !ids.has(c.id)
+      ),
+      ...(wasActive ? { activeConvId: null, messages: [] } : {}),
+    });
+    get().showToast(
+      convIds.length === 1 ? "Conversation deleted" : `${convIds.length} conversations deleted`
+    );
+  },
     }),
     {
       name: "oh-matilda",
       partialize: (s) => ({
         conversations: s.conversations,
         activeConvId: s.activeConvId,
-        runHistory: s.runHistory.slice(-MAX_RUN_HISTORY),
+        runHistory: (s.runHistory ?? []).slice(-MAX_RUN_HISTORY),
         theme: s.theme,
         perms: s.perms,
         mode: s.mode,
-        webEnabled: s.webEnabled,
-        agentArmed: s.agentArmed,
+        // agentArmed VOLONTAIREMENT absent : toujours désarmé au lancement.
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        // Toujours désarmé au lancement (même si une vieille sauvegarde
+        // persistait agentArmed: true).
+        state.agentArmed = false;
         if (state.activeConvId) {
           const conv = state.conversations.find((c) => c.id === state.activeConvId);
           if (conv) {

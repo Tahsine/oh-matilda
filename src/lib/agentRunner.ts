@@ -4,7 +4,6 @@
 // Zéro middleware custom superflu : cancel = signal, deadline = race.
 // Thread checkpointer = conversation (mémoire inter-runs).
 // Contrat public INCHANGÉ : store/UI intacts.
-import { invoke } from "@tauri-apps/api/core";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { createAgent, modelCallLimitMiddleware } from "langchain";
 import { revisitMiddleware } from "./agentGuardsLite";
@@ -124,7 +123,10 @@ export function runAgentTask(
     const signal = abort.signal;
     let key: string;
     try {
-      key = await invoke<string>("get_ollama_key");
+      // Clé device (store) d'abord, compilée en repli.
+      const { getOllamaKey, friendlyLlmError } = await import("./ollamaKey");
+      key = await getOllamaKey();
+      if (!key) throw new Error(friendlyLlmError("missing api key"));
     } catch (e) {
       if (!cancelled) cb.onError(e instanceof Error ? e.message : String(e));
       return;
@@ -460,7 +462,8 @@ export function runAgentTask(
         endWith("failed", "recursion limit exceeded");
         return;
       }
-      cb.onError(msg);
+      const { friendlyLlmError } = await import("./ollamaKey");
+      cb.onError(friendlyLlmError(msg));
     }
   })();
 

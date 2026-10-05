@@ -38,4 +38,6 @@ export {
   Bot,
   Square,
   TriangleAlert,
+  MessageCircle,
+  KeyRound,
 } from "lucide-react";

@@ -256,39 +256,9 @@ export const SCENARIOS: Record<string, Scenario> = {
   }
 };
 
-export const SCENARIO_ORDER = [
-  "whatsapp_msg", "phone_action", "santorini", "travel_time", "itinerary", "budget", "quiet",
-  "travel", "design_components", "design_consistency", "design_versioning",
-  "design", "support_cache", "support_disk", "support_still", "support_ext",
-  "support_slow", "files_delete", "rewrite", "brainstorm", "capabilities",
-  "greeting", "thanks"
-];
 
-export const GENERIC_SCENARIO: Scenario = {
-  kw: [],
-  thought: "No exact match found — composing a structured answer…",
-  r: {
-    formal: "Thank you for the context. Regarding “**{U}**” — I would approach it in three steps: clarify the objective, gather the relevant facts, and propose a concrete course of action. Confirm the direction and I will prepare the detailed next steps.",
-    friendly: "Great question! On “**{U}**” — here's my spin: start from the goal, list what we already know, then pick the smallest step that moves the needle. Want me to go deeper on any part? ✨",
-    concise: "On “**{U}**”: clarify the goal → gather facts → propose the next step. Say the word and I'll expand."
-  },
-  fu: ["Rewrite this more formally", "Give me a concrete example", "Thank you!"]
-};
 
-export const SOURCES_BY_TOPIC: Record<string, string[]> = {
-  travel: ["cyclades-guide.gr", "amalfi-coast.it", "bali-tourism.id"],
-  design: ["designhandbook.dev", "components.studio", "semver.org"],
-  support: ["support.google.com", "apple.com", "bleepingcomputer.com"],
-  generic: ["wikipedia.org", "reddit.com", "medium.com"]
-};
 
-export function getSourcesFor(scId?: string): string[] {
-  if (!scId) return SOURCES_BY_TOPIC.generic;
-  if (/travel|santorini|itinerary|budget|quiet/.test(scId)) return SOURCES_BY_TOPIC.travel;
-  if (/design/.test(scId)) return SOURCES_BY_TOPIC.design;
-  if (/support|files/.test(scId)) return SOURCES_BY_TOPIC.support;
-  return SOURCES_BY_TOPIC.generic;
-}
 
 export const INITIAL_CONVERSATIONS: ConversationHistoryItem[] = [
   {
@@ -339,13 +309,3 @@ export const INITIAL_CONVERSATIONS: ConversationHistoryItem[] = [
   }
 ];
 
-export function matchScenario(text: string): string | null {
-  const t = text.toLowerCase().trim();
-  for (const key of SCENARIO_ORDER) {
-    const kw = SCENARIOS[key].kw;
-    for (const pattern of kw) {
-      try { if (new RegExp(pattern, "i").test(t)) return key; } catch {}
-    }
-  }
-  return null;
-}

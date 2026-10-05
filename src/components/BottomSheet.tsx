@@ -1,16 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { ImageIcon, FileText, Globe, Sliders, Check, ChevronDown, Bot } from '@/lib/icons';
+import { Sliders, Check, ChevronDown, Bot } from '@/lib/icons';
 import { motion, AnimatePresence } from 'motion/react';
-import { SHOW_WEBSEARCH } from '@/lib/flags';
 import type { Mode } from '@/types';
 
 interface BottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  onAttachPhoto: () => void;
-  onAttachFile: () => void;
-  webEnabled: boolean;
-  onToggleWeb: () => void;
   mode: Mode;
   onChangeMode: (mode: Mode) => void;
   agentArmed: boolean;
@@ -20,10 +15,6 @@ interface BottomSheetProps {
 export const BottomSheet: React.FC<BottomSheetProps> = ({
   isOpen,
   onClose,
-  onAttachPhoto,
-  onAttachFile,
-  webEnabled,
-  onToggleWeb,
   mode,
   onChangeMode,
   agentArmed,
@@ -103,30 +94,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             </div>
 
             <div className="flex flex-col gap-1 px-1">
-              {/* Photo */}
-              <button
-                onClick={onAttachPhoto}
-                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
-                style={{ color: 'var(--text-1)' }}
-              >
-                <ImageIcon className="w-4 h-4 stroke-[2]" style={{ color: 'var(--text-2)' }} />
-                <span>Photo</span>
-              </button>
-
-              {/* File */}
-              <button
-                onClick={onAttachFile}
-                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
-                style={{ color: 'var(--text-1)' }}
-              >
-                <FileText className="w-4 h-4 stroke-[2]" style={{ color: 'var(--text-2)' }} />
-                <span>File</span>
-              </button>
-
               {/* Agent task — mode strict : armé, tout send agit sur le téléphone */}
               <button
                 onClick={onToggleAgent}
-                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
+                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-[var(--hover)] active:scale-[0.99] cursor-pointer"
                 style={{
                   color: agentArmed ? 'var(--accent)' : 'var(--text-1)',
                 }}
@@ -138,30 +109,10 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                 )}
               </button>
 
-              {/* Web Search Toggle (masqué : aucun tool réel — voir flags.ts) */}
-              {SHOW_WEBSEARCH && (
-              <button
-                onClick={onToggleWeb}
-                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
-                style={{
-                  color: webEnabled ? 'var(--accent)' : 'var(--text-1)',
-                }}
-              >
-                <Globe
-                  className="w-4 h-4 stroke-[2]"
-                  style={{ color: webEnabled ? 'var(--accent)' : 'var(--text-2)' }}
-                />
-                <span className="flex-1">Web search</span>
-                {webEnabled && (
-                  <Check className="w-4 h-4 stroke-[2.6]" style={{ color: 'var(--accent)' }} />
-                )}
-              </button>
-              )}
-
               {/* Tone Option */}
               <button
                 onClick={() => setShowToneOptions(!showToneOptions)}
-                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-black/5 active:scale-[0.99] cursor-pointer"
+                className="flex items-center gap-3 w-full min-h-[44px] p-2.5 rounded-[12px] text-[13px] font-medium text-left transition-colors active:bg-[var(--hover)] active:scale-[0.99] cursor-pointer"
                 style={{ color: 'var(--text-1)' }}
               >
                 <Sliders className="w-4 h-4 stroke-[2]" style={{ color: 'var(--text-2)' }} />
@@ -185,25 +136,34 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                   exit={{ opacity: 0, height: 0 }}
                   className="pl-7 pr-2 py-1 flex flex-col gap-1 overflow-hidden"
                 >
-                  {(['fast', 'thinking'] as Mode[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => {
-                        onChangeMode(t);
-                        setShowToneOptions(false);
-                      }}
-                      className="flex items-center justify-between py-2 px-2.5 rounded-[8px] text-[12.5px] font-medium transition-colors active:bg-black/5 cursor-pointer"
-                      style={{
-                        backgroundColor: mode === t ? 'var(--hover)' : 'transparent',
-                        color: 'var(--text-1)',
-                      }}
-                    >
-                      <span>{modeLabels[t]}</span>
-                      {mode === t && (
-                        <Check className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: 'var(--accent)' }} />
-                      )}
-                    </button>
-                  ))}
+                  {(['fast', 'thinking'] as Mode[]).map((t) => {
+                    // Mode agent armé : thinking visible mais verrouillé
+                    // (opacité réduite, non cliquable) — l'agent est fast.
+                    const locked = t === 'thinking' && agentArmed;
+                    return (
+                      <button
+                        key={t}
+                        disabled={locked}
+                        onClick={() => {
+                          if (locked) return;
+                          onChangeMode(t);
+                          setShowToneOptions(false);
+                        }}
+                        className="flex items-center justify-between py-2 px-2.5 rounded-[8px] text-[12.5px] font-medium transition-colors active:bg-[var(--hover)] cursor-pointer disabled:cursor-not-allowed"
+                        style={{
+                          backgroundColor: mode === t ? 'var(--hover)' : 'transparent',
+                          color: 'var(--text-1)',
+                          opacity: locked ? 0.4 : 1,
+                        }}
+                        aria-disabled={locked}
+                      >
+                        <span>{modeLabels[t]}</span>
+                        {mode === t && (
+                          <Check className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: 'var(--accent)' }} />
+                        )}
+                      </button>
+                    );
+                  })}
                 </motion.div>
               )}
             </div>

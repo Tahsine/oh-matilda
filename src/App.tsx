@@ -7,13 +7,12 @@ import { HomeState } from "@/components/HomeState";
 import { Composer } from "@/components/Composer";
 import { BottomSheet } from "@/components/BottomSheet";
 import { MessageItem } from "@/components/MessageItem";
-import { FollowUpPanel } from "@/components/FollowUpPanel";
-import { VoiceOverlay } from "@/components/VoiceOverlay";
 import { DeviceAccessModal } from "@/components/DeviceAccessModal";
+import { SettingsSheet } from "@/components/SettingsSheet";
 import { ConversationList } from "@/components/ConversationList";
 import { ArrowDown } from "@/lib/icons";
 import { openAccessibilitySettings } from "@/lib/agentTools";
-import { onAgentStopRequest } from "@/lib/agentBridge";
+import { onAgentStopRequest, setStatusBarDark } from "@/lib/agentBridge";
 import { useChatStore } from "@/store/chatStore";
 
 function App() {
@@ -25,12 +24,8 @@ function App() {
   const input = useChatStore((s) => s.input);
   const attachments = useChatStore((s) => s.attachments);
   const mode = useChatStore((s) => s.mode);
-  const webEnabled = useChatStore((s) => s.webEnabled);
   const kebabOpen = useChatStore((s) => s.kebabOpen);
   const sheetOpen = useChatStore((s) => s.sheetOpen);
-  const followUpOpen = useChatStore((s) => s.followUpOpen);
-  const followUpQuestions = useChatStore((s) => s.followUpQuestions);
-  const voiceOpen = useChatStore((s) => s.voiceOpen);
   const accessOpen = useChatStore((s) => s.accessOpen);
   const perms = useChatStore((s) => s.perms);
   const screenshotPreview = useChatStore((s) => s.screenshotPreview);
@@ -45,24 +40,18 @@ function App() {
 
   const showToast = useChatStore((s) => s.showToast);
   const setInput = useChatStore((s) => s.setInput);
-  const attach = useChatStore((s) => s.attach);
   const removeAttachment = useChatStore((s) => s.removeAttachment);
-  const toggleWeb = useChatStore((s) => s.toggleWeb);
   const setMode = useChatStore((s) => s.setMode);
   const toggleTheme = useChatStore((s) => s.toggleTheme);
   const toggleKebab = useChatStore((s) => s.toggleKebab);
   const closeKebab = useChatStore((s) => s.closeKebab);
   const openSheet = useChatStore((s) => s.openSheet);
   const closeSheet = useChatStore((s) => s.closeSheet);
-  const openVoice = useChatStore((s) => s.openVoice);
-  const closeVoice = useChatStore((s) => s.closeVoice);
   const openAccess = useChatStore((s) => s.openAccess);
   const closeAccess = useChatStore((s) => s.closeAccess);
   const continueAccess = useChatStore((s) => s.continueAccess);
   const openList = useChatStore((s) => s.openList);
   const closeList = useChatStore((s) => s.closeList);
-  const openFollowUp = useChatStore((s) => s.openFollowUp);
-  const closeFollowUp = useChatStore((s) => s.closeFollowUp);
   const enablePerm = useChatStore((s) => s.enablePerm);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const regenerate = useChatStore((s) => s.regenerate);
@@ -70,13 +59,16 @@ function App() {
   const newChat = useChatStore((s) => s.newChat);
   const toggleFav = useChatStore((s) => s.toggleFav);
   const deleteConversation = useChatStore((s) => s.deleteConversation);
+  const deleteConversations = useChatStore((s) => s.deleteConversations);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const prevLenRef = useRef(0);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    setStatusBarDark(theme === 'dark');
   }, [theme]);
 
   // Ligne a11y : ouvre les vrais Réglages Android (l'activation se fait
@@ -206,9 +198,7 @@ function App() {
                   <MessageItem
                     key={m.id}
                     message={m}
-                    webEnabled={webEnabled}
                     onToast={showToast}
-                    onOpenFollowUp={openFollowUp}
                     onRegenerate={regenerate}
                     run={live ?? archived}
                     onCancelRun={cancelAgentTask}
@@ -255,32 +245,12 @@ function App() {
         onRemoveAttachment={removeAttachment}
         onOpenSheet={openSheet}
         onSend={() => sendMessage()}
-        onStartVoice={openVoice}
         agentArmed={agentArmed}
-      />
-
-      <FollowUpPanel
-        isOpen={followUpOpen}
-        questions={followUpQuestions}
-        onSelect={(q) => sendMessage(q)}
-        onClose={closeFollowUp}
       />
 
       <BottomSheet
         isOpen={sheetOpen}
         onClose={closeSheet}
-        onAttachPhoto={() => {
-          attach("photo");
-          closeSheet();
-          showToast("Photo attached (simulated)");
-        }}
-        onAttachFile={() => {
-          attach("file");
-          closeSheet();
-          showToast("File attached (simulated)");
-        }}
-        webEnabled={webEnabled}
-        onToggleWeb={toggleWeb}
         mode={mode}
         onChangeMode={setMode}
         agentArmed={agentArmed}
@@ -295,9 +265,8 @@ function App() {
         onClose={closeKebab}
         isDark={theme === "dark"}
         onToggleTheme={toggleTheme}
-        onOpenSettings={() => showToast("Settings (simulated)")}
+        onOpenSettings={() => setSettingsOpen(true)}
         onOpenAccess={openAccess}
-        onOpenProfile={() => showToast("Profile (simulated)")}
       />
 
       <DeviceAccessModal
@@ -311,16 +280,10 @@ function App() {
         onContinue={continueAccess}
       />
 
-      <VoiceOverlay
-        isOpen={voiceOpen}
-        onCancel={() => {
-          closeVoice();
-          showToast("Voice cancelled");
-        }}
-        onComplete={(transcript) => {
-          closeVoice();
-          sendMessage(transcript);
-        }}
+      <SettingsSheet
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onToast={showToast}
       />
 
       <ConversationList
@@ -331,6 +294,7 @@ function App() {
         onSelectConversation={selectConversation}
         onToggleFav={toggleFav}
         onDeleteConversation={deleteConversation}
+        onDeleteMany={deleteConversations}
         onNewChat={newChat}
       />
 

@@ -11,7 +11,6 @@ interface ComposerProps {
   onRemoveAttachment: (type: 'photo' | 'file') => void;
   onOpenSheet: () => void;
   onSend: () => void;
-  onStartVoice: () => void;
   agentArmed: boolean;
 }
 
@@ -51,8 +50,10 @@ export const Composer: React.FC<ComposerProps> = ({
       className="relative px-3 pt-2 pb-[calc(var(--sab)+2px)] select-none shrink-0 z-10"
     >
       <div
-        className="rounded-[22px] p-2.5 px-3.5 border shadow-xs transition-all"
+        className="p-2.5 px-3.5 border transition-all"
         style={{
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-sm)',
           backgroundColor: 'var(--composer-bg)',
           borderColor: agentArmed ? 'var(--accent)' : 'var(--composer-border)',
         }}
@@ -66,7 +67,7 @@ export const Composer: React.FC<ComposerProps> = ({
             >
               Agent
             </span>
-            <span className="text-[10.5px] font-medium" style={{ color: 'var(--text-3)' }}>
+            <span className="text-[11px] font-medium" style={{ color: 'var(--text-3)' }}>
               Ce message agira sur ton téléphone
             </span>
           </div>
@@ -147,7 +148,7 @@ export const Composer: React.FC<ComposerProps> = ({
           <button
             id="btn-plus-options"
             onClick={onOpenSheet}
-            className="w-11 h-11 rounded-xl flex items-center justify-center transition-all active:bg-black/10 active:scale-90 cursor-pointer"
+            className="w-11 h-11 rounded-xl flex items-center justify-center transition-all active:bg-[var(--hover)] active:scale-90 cursor-pointer"
             style={{
               backgroundColor: 'var(--hover)',
               color: 'var(--text-2)',

@@ -1,8 +1,8 @@
 // Agent réel — Ollama Cloud `gpt-oss:20b-cloud` via Vercel AI SDK.
 // Phase 6 : chat seul (pas d'exécution native). Remplace `mockAgent`
 // (supprimé) : même contrat de streaming, tokens réels au lieu du
-// `setInterval` simulé. Clé lue côté Rust (`get_ollama_key`).
-import { invoke } from "@tauri-apps/api/core";
+// `setInterval` simulé. Clé effective via `getOllamaKey()` (store device
+// d'abord, compilée Rust en repli).
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { streamText } from "ai";
 import { createOllama } from "ollama-ai-provider-v2";
@@ -77,7 +77,13 @@ export function streamOllamaResponse(opts: OllamaStreamOptions): OllamaStreamHan
   void (async () => {
     let key: string;
     try {
-      key = await invoke<string>("get_ollama_key");
+      // Store device d'abord (clé tapée dans Réglages), compilée en repli.
+      const { getOllamaKey, friendlyLlmError } = await import("./ollamaKey");
+      key = await getOllamaKey();
+      if (!key) {
+        if (!cancelled) opts.onError(friendlyLlmError("missing api key"));
+        return;
+      }
     } catch (e) {
       if (!cancelled) opts.onError(e instanceof Error ? e.message : String(e));
       return;
