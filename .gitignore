@@ -23,7 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 research/
-docs/
 
 # Tauri Android : sources natives versionnées (Kotlin écrit main, manifest,
 # res, gradle) — `android init` régénérerait un projet VIDE sans elles.
