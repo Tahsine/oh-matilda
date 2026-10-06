@@ -76,6 +76,9 @@ export function friendlyLlmError(e: unknown): string {
   if (code === "429" || /too many|rate limit|quota/i.test(raw)) {
     return "Quota dépassé, réessaie plus tard";
   }
+  if (/recursion|too many steps|step budget/i.test(raw)) {
+    return "Run trop long — découpe la tâche et relance";
+  }
   if (/timeout|timed out|network|fetch failed|connection|abort|econn|enotfound|socket/i.test(raw)) {
     return "Réseau indisponible, réessaie";
   }

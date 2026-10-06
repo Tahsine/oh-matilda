@@ -1,6 +1,8 @@
 // Garde-fous minimaux du graphe (mécanique prouvée spike S2).
-// Budget tours via modelCallLimit (runLimit, contexte). Ici : revisites
-// (ping-pong A→B→A→B observé gate Chrome-5-liens) + fin demandée.
+// Revisites : DERNIER recours uniquement. Le nudge-d'abord vit côté
+// runner (trackTool : diversification forcée après 2 échecs identiques,
+// nudge anti-scroll à 6 écrans revus). Ici on ne tue qu'à 14 : un run
+// légitime qui chasse (scrolls aller-retour) ne doit pas mourir à 6.
 import { createMiddleware } from "langchain";
 import { z } from "zod";
 
@@ -16,7 +18,7 @@ export interface RevisitCtl {
   onRevisitFail: () => void;
 }
 
-export const REVISIT_FAIL_AT = 6;
+export const REVISIT_FAIL_AT = 14;
 const SEEN_CAP = 40;
 
 const schema = z.object({

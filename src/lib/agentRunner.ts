@@ -1,11 +1,13 @@
 // Driver agent LangGraph — boucle model ⇄ tools (createAgent customisé).
 // Tools : observe (screenshot, uitree) + actes (tap, open_app, type,
-// scroll) + finish. Middleware : revisite + modelCallLimit + ender.
-// Zéro middleware custom superflu : cancel = signal, deadline = race.
+// scroll, back, swipe, long_press) + finish.
+// Middleware : revisite (dernier recours) + ender. PAS de plafond
+// d'appels modèle (retiré : tuait les longs runs légitimes) — filet =
+// budget steps large + deadline + garde stuck + Stop utilisateur.
 // Thread checkpointer = conversation (mémoire inter-runs).
 // Contrat public INCHANGÉ : store/UI intacts.
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
-import { createAgent, modelCallLimitMiddleware } from "langchain";
+import { createAgent } from "langchain";
 import { revisitMiddleware } from "./agentGuardsLite";
 import { MemorySaver } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -23,7 +25,9 @@ const API_URL = "https://ollama.com/api/chat";
 const LLM_TIMEOUT_MS = 45000;
 const LLM_BACKOFFS = [1500, 4000, 8000];
 const RECURSION_LIMIT = 200;
-// Budget ≈ 40 tours (modelCallLimit, built-in). La recursion n'est qu'un filet.
+// Filet anti-emballement : budget STEPS large par run (style AndroidWorld,
+// ~2x le plus long run légitime observé ≈ 38 steps) + deadline + stuck.
+// Jamais de plafond d'appels modèle : un long run légitime ne doit pas mourir.
 // Phase perception : observer suffit large (pas d'actions, pas de boucles).
 
 export interface AgentStep {
@@ -222,16 +226,93 @@ export function runAgentTask(
       throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
     };
 
-    // Finish en deux temps : tout tool autre que finish annule l'attente
-    // de confirmation (le 2e finish doit suivre le 1er directement).
-    // Compteur d'actions modèle (hors traces système) : zéro appel après
-    // un stream = refus sec → on repose la question UNE fois.
-    let finishPending = false;
+    // Finish en UN appel : pas d'attente de confirmation (le 2e appel
+    // sauté causait « no conclusion »). Le stream sans appel = relance UNE fois.
     let toolCalls = 0;
+    // --- Réflecteur nudge-d'abord (style MobileUse/TTIR) ---
+    // Détecte les patterns inutiles et FORCE une diversification au lieu de
+    // tuer le run. Le kill (middleware revisite) n'est que le dernier recours.
+    const STEP_BUDGET = 80;
+    let lastFailKey = "";
+    let failStreak = 0;
+    let prevSig = "";
+    let sigStreak = 0;
+    let scrollOnlyStreak = 0;
+    let scrollNudged = false;
+    let pendingNudge: string | null = null;
+    const takeNudge = (): string | null => {
+      const n = pendingNudge;
+      pendingNudge = null;
+      return n;
+    };
+    const failKeyOf = (toolName: string, args: unknown): string => {
+      try {
+        const o = (args ?? {}) as Record<string, unknown>;
+        const pick: Record<string, unknown> = { t: toolName };
+        for (const k of ["id", "name", "text", "dir", "key"]) {
+          if (o[k] !== undefined) pick[k] = o[k];
+        }
+        return JSON.stringify(pick);
+      } catch {
+        return toolName;
+      }
+    };
+    const DIVERSIFY_NUDGE = (what: string): string =>
+      `STOP repeating ${what}: it just failed identically. You MUST try something different NOW — scroll, tap a DIFFERENT id (use @top/@mid/@bot/@left/@right to disambiguate), press back, or open another app. Repeating it again will be refused without acting.`;
+    const SCROLL_NUDGE =
+      "You keep re-seeing the same screens by scrolling. STOP scrolling: re-read the tree, pick ONE precise element (id + @position suffix) and tap it, or press back. Scrolling again without acting is forbidden.";
+    /** Refus déterministe (sans appel natif) dès la 4e répétition identique. */
+    const claimRefusal = (toolName: string, args: unknown): string | null => {
+      if (failStreak >= 3 && failKeyOf(toolName, args) === lastFailKey) {
+        return `REFUSED without acting: ${toolName} ${JSON.stringify(args ?? {}).slice(0, 80)} already failed identically 3 times. Do something DIFFERENT now (scroll, different id with @position, back, another app).`;
+      }
+      return null;
+    };
+    const ACT_TOOLS = new Set(["tap", "type", "scroll", "open_app", "back", "swipe", "long_press"]);
+    const LOOK_TOOLS = new Set(["scroll", "read_uitree", "take_screenshot"]);
     const trackTool = (tool: string, args: unknown, ok: boolean, error?: string, pkg?: string): void => {
-      if (tool !== "finish") finishPending = false;
       toolCalls += 1;
+      // Filet large : fin honnête, jamais de jargon.
+      if (toolCalls > STEP_BUDGET && !endRef.current) {
+        endRef.current = {
+          status: "failed",
+          summary: `step budget exceeded (${STEP_BUDGET} actions without concluding) — task too long, split it and retry`,
+        };
+      }
       pushTrace(tool, args, ok, error, pkg);
+      if (error === "refused-identical") return; // refus déterministe : hors compteurs
+      // Pattern 1 : même action, même échec → directive au 3e tour.
+      if (!ok && ACT_TOOLS.has(tool)) {
+        const k = failKeyOf(tool, args);
+        if (k === lastFailKey) failStreak += 1;
+        else {
+          failStreak = 1;
+          lastFailKey = k;
+        }
+        if (failStreak === 2) {
+          pendingNudge = DIVERSIFY_NUDGE(`${tool} ${JSON.stringify(args ?? {}).slice(0, 80)}`);
+        }
+      } else if (ok) {
+        failStreak = 0;
+        lastFailKey = "";
+      }
+      // Pattern 2 : mêmes écrans revus par regards seuls → nudge anti-scroll.
+      if (lastSig) {
+        if (lastSig === prevSig) {
+          sigStreak += 1;
+          if (LOOK_TOOLS.has(tool)) scrollOnlyStreak += 1;
+          else scrollOnlyStreak = 0;
+          if (sigStreak === 6 && scrollOnlyStreak >= 4 && !scrollNudged) {
+            scrollNudged = true;
+            pendingNudge = SCROLL_NUDGE;
+          }
+        } else {
+          prevSig = lastSig;
+          sigStreak = 0;
+          scrollOnlyStreak = 0;
+          scrollNudged = false;
+        }
+      }
     };
 
     const model = new OllamaAgentModel({
@@ -253,18 +334,11 @@ export function runAgentTask(
         noteScreen: (sig, pkg) => noteScreen(sig, pkg),
         onTrace: (tool, args, ok, error, pkg) => trackTool(tool, args, ok, error, pkg),
         onStep: (label, detail) => stepLine(label, detail),
+        takeNudge: () => takeNudge(),
         setEnd: (status, summary) => {
           endRef.current = { status, summary };
         },
         isCancelled: () => cancelled || signal.aborted,
-        claimFinishConfirm: () => {
-          const second = finishPending;
-          finishPending = true;
-          return second;
-        },
-        resetFinishPending: () => {
-          finishPending = false;
-        },
         verifyClaim: async (summary, evidence) => {
           const shot = shots[1];
           if (!shot || cancelled || signal.aborted) return null;
@@ -307,6 +381,8 @@ export function runAgentTask(
         noteScreen: (sig, pkg) => noteScreen(sig, pkg),
         onTrace: (tool, args, ok, error, pkg) => trackTool(tool, args, ok, error, pkg),
         onStep: (label, detail) => stepLine(label, detail),
+        takeNudge: () => takeNudge(),
+        claimRefusal: (tool, args) => claimRefusal(tool, args),
         isCancelled: () => cancelled || signal.aborted,
       }),
     ];
@@ -328,14 +404,14 @@ export function runAgentTask(
         tools,
         middleware: [
           // finish/ask (endRef posé par les tools) DOIT arrêter le graphe,
-          // + détecteur de revisites (ping-pong observé gate Chrome).
+          // + détecteur de revisites en DERNIER recours (le nudge-d'abord
+          // vit côté runner : trackTool/trackScreen ci-dessous).
           revisitMiddleware({
             getRunId: () => runId,
             getSig: () => lastSig,
             getEnd: () => endRef.current,
             onRevisitFail: () => recordTrace("stuck", {}, false, "returning to screens already seen"),
           }),
-          modelCallLimitMiddleware(),
         ],
         checkpointer,
       });
@@ -344,7 +420,6 @@ export function runAgentTask(
         configurable: { thread_id: threadId },
         recursionLimit: RECURSION_LIMIT,
         signal,
-        context: { runLimit: 40, exitBehavior: "error" as const },
       };
       const prior = (await agent.getState(config)) as unknown as {
         values?: { messages?: unknown[] };
@@ -428,7 +503,8 @@ export function runAgentTask(
       }
       const msgs = finalState?.values?.messages ?? [];
       // Repli : dernier texte MODÈLE uniquement (jamais un retour d'outil,
-      // jamais TASK). Sans conclusion modèle → message générique.
+      // jamais TASK). Lit les strings ET les blocs multimodaux (gemma renvoie
+      // des tableaux). Sans conclusion modèle → message générique.
       const modelText = (m: unknown): string | null => {
         if (!m || typeof m !== "object") return null;
         const o = m as Record<string, unknown>;
@@ -442,8 +518,22 @@ export function runAgentTask(
         if (!kind) kind = String(o["type"] ?? o["role"] ?? "");
         if (kind !== "ai" && kind !== "assistant" && kind !== "AIMessage") return null;
         const c = o["content"];
-        const t = typeof c === "string" ? c : "";
-        return t.trim().length > 0 ? t : null;
+        if (typeof c === "string") return c.trim().length > 0 ? c : null;
+        if (Array.isArray(c)) {
+          const t = c
+            .map((b) => {
+              if (typeof b === "string") return b;
+              if (b && typeof b === "object") {
+                const r = b as Record<string, unknown>;
+                return typeof r["text"] === "string" ? (r["text"] as string) : "";
+              }
+              return "";
+            })
+            .join(" ")
+            .trim();
+          return t.length > 0 ? t : null;
+        }
+        return null;
       };
       const lastText = [...msgs].map(modelText).reverse()
         .find((t): t is string => t !== null) ?? "no conclusion produced";
