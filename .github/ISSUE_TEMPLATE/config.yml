@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / usage / ideas
+    url: https://github.com/Tahsine/oh-matilda/discussions
+    about: Ask in Discussions (Q&A) instead of opening an issue.
+  - name: Demo video comments
+    url: https://youtu.be/1frk7yUQ3sg
+    about: Reactions to the demo belong under the YouTube video.

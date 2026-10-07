@@ -85,6 +85,12 @@ adb push <apk> /data/local/tmp/ohm.apk && adb shell 'pm install -r /data/local/t
 - **v0.2** — eval harness (automated battery), agent skills (DeepAgents), durable memory, real sources with citations.
 - **Later** — on-device model exploration, multi-app workflows.
 
+## Feedback
+
+- **Bug** → [open an issue](https://github.com/Tahsine/oh-matilda/issues/new/choose) with the template (device, task, run-card verdict — never your API key).
+- **Idea / question** → [Discussions](https://github.com/Tahsine/oh-matilda/discussions) (Q&A).
+- **Demo reactions** → comments under the [video](https://youtu.be/1frk7yUQ3sg).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
