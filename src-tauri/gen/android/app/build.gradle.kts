@@ -37,7 +37,24 @@ android {
             }
         }
         getByName("release") {
+            // Sceau release perso (keystore.properties local, JAMAIS commité).
+            // Sans lui : debug auto-jetable → updates impossibles (signature).
+            val ksProps = Properties().apply {
+                val f = rootProject.file("keystore.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+            val ksFile = ksProps.getProperty("storeFile")?.let { file(it) }
+            if (ksFile != null && ksFile.exists()) {
+                signingConfigs.maybeCreate("release").apply {
+                    storeFile = ksFile
+                    storePassword = ksProps.getProperty("storePassword")
+                    keyAlias = ksProps.getProperty("keyAlias")
+                    keyPassword = ksProps.getProperty("keyPassword")
+                }
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))

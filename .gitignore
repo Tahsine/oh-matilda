@@ -24,6 +24,10 @@ dist-ssr
 *.sw?
 research/
 
+# Personal notes (on disk only, never committed — eval report stays public)
+docs/PLAN-mobile.md
+docs/WIRELESS.md
+
 # Tauri Android : sources natives versionnées (Kotlin écrit main, manifest,
 # res, gradle) — `android init` régénérerait un projet VIDE sans elles.
 # Seuls les outputs et le régénérable sont ignorés.
@@ -47,5 +51,6 @@ research/
 # fuite = usurpation d'identite. Stockage : gestionnaire de mots de passe.)
 *.jks
 *.keystore
+keystore.properties
 .env
 .env.*
