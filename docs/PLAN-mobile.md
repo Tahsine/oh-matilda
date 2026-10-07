@@ -27,7 +27,7 @@
 
 **Réutilisable tel quel :** `src/types.ts`, `src/constants/{scenarios,images,prompts}.ts`, `src/lib/icons.ts`, `src/styles/global.css` (variables thèmes alignées ref).
 
-**Device** : `521004edeadf2499` connecté mais **unauthorized** → accepter le prompt « Autoriser le débogage USB » sur le téléphone à la première connexion.
+**Device** : `<device-id>` connecté mais **unauthorized** → accepter le prompt « Autoriser le débogage USB » sur le téléphone à la première connexion.
 
 ## Desktop → mobile : ce qui change
 

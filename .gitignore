@@ -39,3 +39,13 @@ research/
 # Build outputs (jamais commites)
 *.apk
 *.aab
+*.mp4
+*.mkv
+*.mov
+
+# Keystore release + secrets (JAMAIS commites : perte = app non-updatable,
+# fuite = usurpation d'identite. Stockage : gestionnaire de mots de passe.)
+*.jks
+*.keystore
+.env
+.env.*

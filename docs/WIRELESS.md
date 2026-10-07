@@ -1,13 +1,12 @@
-# Dev sans câble — Oh-Matilda (SM-A520F `521004edeadf2499`)
+# Dev sans câble — Oh-Matilda (remplace `<device-id>` par ton serial `adb devices`)
 
 > `tauri android dev` en HMR via Wi-Fi uniquement. L'APK debug `app-universal-debug.apk` (120 MB) est figé ; ce guide garde le **live reload** sans USB après l'install initiale.
 
-## Pourquoi cette doc est ignorée
-`.gitignore:26` contient `docs/` — ce fichier n'est jamais commité (local only).
+> Note repo public : les serials device de l'auteur ont été caviardés (`<device-id>`). Ne commite jamais ton propre serial.
 
 ## Prérequis
 - Même Wi-Fi PC ↔ téléphone (obligatoire HMR `vite.config.ts:8` `TAURI_DEV_HOST`, `docs/PLAN-mobile.md:6`)
-- Débogage USB déjà autorisé une fois (`adb devices` affiche `521004edeadf2499 device`)
+- Débogage USB déjà autorisé une fois (`adb devices` affiche `<device-id> device`)
 
 ## Cas SM-A520F (Android 8) — pas de « Jumeler avec code » (Android 11+)
 
